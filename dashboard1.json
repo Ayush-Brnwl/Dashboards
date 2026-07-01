@@ -70,7 +70,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "**GitHub Governance \u2014 Audit Pipeline Health**  \nTracks GitHub Enterprise audit-log ingestion from GCS into BigQuery: throughput, failures, parse quality, processing duration, and freshness. Non-audit `_check/` marker objects are excluded from health metrics. Source event lag may include historical backfill until backlog processing completes."
+        "content": "**GitHub Governance \u2014 Audit Pipeline Health**  \nTracks GitHub Enterprise audit-log ingestion from GCS into BigQuery: throughput, file-level success, parse quality, duration, deduplication, and freshness. `_check/` marker objects are excluded. Source event lag includes historical backfill until backlog processing completes."
       },
       "pluginVersion": "11.6.0",
       "transparent": false
@@ -86,7 +86,7 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
+        "w": 3,
         "x": 0,
         "y": 3
       },
@@ -144,7 +144,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n              TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX(completed_at), SECOND) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE processing_status = 'SUCCESS'\n              AND NOT STARTS_WITH(source_file, '_check/')",
+          "rawSql": "SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX(completed_at), SECOND) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE processing_status = 'SUCCESS'\n              AND NOT STARTS_WITH(source_file, '_check/')",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -152,6 +152,81 @@
     },
     {
       "id": 3,
+      "type": "stat",
+      "title": "Pipeline success rate",
+      "description": "Successful processing runs as a percentage of all real audit-file runs.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 3,
+        "y": 3
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 99.0
+              },
+              {
+                "color": "green",
+                "value": 99.9
+              }
+            ]
+          },
+          "unit": "percent",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT SAFE_MULTIPLY(\n              SAFE_DIVIDE(COUNTIF(processing_status = 'SUCCESS'), COUNT(*)),\n              100\n            ) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ]
+    },
+    {
+      "id": 4,
       "type": "stat",
       "title": "Files processed",
       "description": "File-level processing runs in the selected period.",
@@ -161,8 +236,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 4,
+        "w": 3,
+        "x": 6,
         "y": 3
       },
       "fieldConfig": {
@@ -218,7 +293,7 @@
       ]
     },
     {
-      "id": 4,
+      "id": 5,
       "type": "stat",
       "title": "Events inserted",
       "description": "Normalized audit events written to BigQuery in the selected period.",
@@ -228,8 +303,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 8,
+        "w": 3,
+        "x": 9,
         "y": 3
       },
       "fieldConfig": {
@@ -285,17 +360,17 @@
       ]
     },
     {
-      "id": 5,
+      "id": 6,
       "type": "stat",
-      "title": "Pipeline success rate",
-      "description": "Successful processing runs as a percentage of all real audit-file processing runs.",
+      "title": "p95 processing duration",
+      "description": "Latest available p95 file-processing duration. Current source precision is whole seconds.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
+        "w": 3,
         "x": 12,
         "y": 3
       },
@@ -309,20 +384,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 99.0
-              },
-              {
                 "color": "green",
-                "value": 99.9
+                "value": null
               }
             ]
           },
-          "unit": "percent",
+          "unit": "ms",
           "decimals": 0
         },
         "overrides": []
@@ -353,14 +420,14 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n              SAFE_MULTIPLY(\n                SAFE_DIVIDE(\n                  COUNTIF(processing_status = 'SUCCESS'),\n                  COUNT(*)\n                ),\n                100\n              ) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
+          "rawSql": "SELECT COALESCE(MAX(p95_processing_duration_seconds) * 1000, 0) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.v_github_audit_pipeline_health_15m`\n            WHERE $__timeFilter(minute)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
       ]
     },
     {
-      "id": 6,
+      "id": 7,
       "type": "stat",
       "title": "Failed files",
       "description": "Failed audit-file processing runs. Excludes _check/ marker objects.",
@@ -370,8 +437,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 16,
+        "w": 3,
+        "x": 15,
         "y": 3
       },
       "fieldConfig": {
@@ -435,7 +502,7 @@
       ]
     },
     {
-      "id": 7,
+      "id": 8,
       "type": "stat",
       "title": "Parse failures",
       "description": "Malformed or unparseable audit records. Excludes _check/ marker objects.",
@@ -445,8 +512,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 20,
+        "w": 3,
+        "x": 18,
         "y": 3
       },
       "fieldConfig": {
@@ -510,10 +577,77 @@
       ]
     },
     {
-      "id": 8,
+      "id": 9,
+      "type": "stat",
+      "title": "Duplicates skipped",
+      "description": "Duplicates removed within source files. Expected for at-least-once delivery.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 3,
+        "x": 21,
+        "y": 3
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "showPercentChange": false,
+        "wideLayout": true
+      },
+      "pluginVersion": "11.6.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(SUM(duplicates_skipped), 0) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ]
+    },
+    {
+      "id": 10,
       "type": "timeseries",
       "title": "Events inserted over time",
-      "description": "Audit event throughput written to BigQuery.",
+      "description": "Normalized audit-event throughput written to BigQuery.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -606,10 +740,10 @@
       ]
     },
     {
-      "id": 9,
+      "id": 11,
       "type": "timeseries",
       "title": "Files processed over time",
-      "description": "Real audit-file processing throughput. Failure trend is separated below for readability.",
+      "description": "Real audit-file processing throughput.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -702,10 +836,10 @@
       ]
     },
     {
-      "id": 10,
+      "id": 12,
       "type": "timeseries",
-      "title": "p95 processing duration",
-      "description": "p95 processor execution duration. Shown in milliseconds for better visibility.",
+      "title": "Pipeline failures over time",
+      "description": "Failure, partial-failure, and parse-failure trend. Excludes _check/ marker objects.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -762,7 +896,7 @@
               }
             ]
           },
-          "unit": "ms",
+          "unit": "short",
           "decimals": 0,
           "min": 0
         },
@@ -791,17 +925,17 @@
           "editorMode": "code",
           "format": 0,
           "rawQuery": true,
-          "rawSql": "SELECT\n              $__timeGroup(minute, $__interval) AS time,\n              MAX(p95_processing_duration_seconds) * 1000 AS p95_processing_duration_ms\n            FROM `db-dev-l4to-mp-github.github_governance.v_github_audit_pipeline_health_15m`\n            WHERE $__timeFilter(minute)\n            GROUP BY time\n            ORDER BY time",
+          "rawSql": "SELECT\n              $__timeGroup(started_at, $__interval) AS time,\n              COUNTIF(processing_status = 'FAILED') AS failed_files,\n              COUNTIF(processing_status = 'PARTIAL_FAILURE') AS partial_failure_files,\n              SUM(parse_failures) AS parse_failures\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')\n            GROUP BY time\n            ORDER BY time",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
       ]
     },
     {
-      "id": 11,
+      "id": 13,
       "type": "timeseries",
-      "title": "Pipeline failures over time",
-      "description": "Failures, partial failures, and parse failures. Excludes _check/ marker objects.",
+      "title": "Duplicates skipped over time",
+      "description": "Expected at-least-once delivery behavior tracked over time.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -887,24 +1021,24 @@
           "editorMode": "code",
           "format": 0,
           "rawQuery": true,
-          "rawSql": "SELECT\n              $__timeGroup(started_at, $__interval) AS time,\n              COUNTIF(processing_status = 'FAILED') AS failed_files,\n              COUNTIF(processing_status = 'PARTIAL_FAILURE') AS partial_failure_files,\n              SUM(parse_failures) AS parse_failures\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')\n            GROUP BY time\n            ORDER BY time",
+          "rawSql": "SELECT\n              $__timeGroup(minute, $__interval) AS time,\n              SUM(duplicates_skipped) AS duplicates_skipped\n            FROM `db-dev-l4to-mp-github.github_governance.v_github_audit_pipeline_health_15m`\n            WHERE $__timeFilter(minute)\n            GROUP BY time\n            ORDER BY time",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
       ]
     },
     {
-      "id": 12,
+      "id": 14,
       "type": "timeseries",
       "title": "Source event lag \u2014 historical backfill included",
-      "description": "Lag between source event time and processing completion. Historical backfill can increase this temporarily.",
+      "description": "Lag from source event time to processing completion. Historical backfill can increase this temporarily.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 24,
         "x": 0,
         "y": 26
       },
@@ -990,77 +1124,10 @@
       ]
     },
     {
-      "id": 13,
-      "type": "stat",
-      "title": "Duplicates skipped",
-      "description": "Duplicates removed within source files. Expected for at-least-once delivery.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
-      "gridPos": {
-        "h": 5,
-        "w": 4,
-        "x": 12,
-        "y": 26
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false,
-        "wideLayout": true
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 1,
-          "rawQuery": true,
-          "rawSql": "SELECT COALESCE(SUM(duplicates_skipped), 0) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ]
-    },
-    {
-      "id": 14,
+      "id": 15,
       "type": "table",
       "title": "Recent failed audit files",
-      "description": "Excludes non-audit _check/ marker objects.",
+      "description": "Operational detail for non-successful audit-file processing runs. Excludes non-audit _check/ marker objects.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -1184,6 +1251,6 @@
   "timezone": "utc",
   "title": "GitHub Governance \u2014 Audit Pipeline Health",
   "uid": "github-governance-pipeline-health",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
