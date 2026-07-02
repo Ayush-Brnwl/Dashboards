@@ -14,21 +14,19 @@ WITH candidate_events AS (
     AND event_key IS NOT NULL
     AND action IS NOT NULL
     AND (
-      action = 'protected_branch.policy_override'
-      OR STARTS_WITH(action, 'protected_branch.')
+      STARTS_WITH(action, 'protected_branch.')
       OR STARTS_WITH(action, 'required_status_check.')
       OR action = 'repo.change_merge_setting'
       OR action IN (
-        'team.add_member',
-        'team.remove_member',
         'org.add_member',
-        'org.remove_member'
+        'org.remove_member',
+        'team.add_member',
+        'team.remove_member'
       )
-      OR STARTS_WITH(action, 'oauth_access.')
-      OR STARTS_WITH(action, 'org_credential_authorization.')
       OR action IN (
-        'enterprise.register_self_hosted_runner',
-        'org.register_self_hosted_runner'
+        'oauth_access.create',
+        'oauth_access.regenerate',
+        'oauth_access.destroy'
       )
     )
 ),
@@ -37,6 +35,7 @@ rule_matches AS (
   SELECT
     *,
     CASE
+      -- Branch and merge controls
       WHEN action = 'protected_branch.policy_override'
         THEN 'GOV-BRANCH-OVERRIDE'
 
@@ -49,18 +48,20 @@ rule_matches AS (
       WHEN action = 'repo.change_merge_setting'
         THEN 'GOV-MERGE-SETTING-CHANGE'
 
-      WHEN action = 'team.add_member'
-        THEN 'GOV-TEAM-MEMBER-ADD'
-
-      WHEN action = 'team.remove_member'
-        THEN 'GOV-TEAM-MEMBER-REMOVE'
-
+      -- Organization and team access
       WHEN action = 'org.add_member'
         THEN 'GOV-ORG-MEMBER-ADD'
 
       WHEN action = 'org.remove_member'
         THEN 'GOV-ORG-MEMBER-REMOVE'
 
+      WHEN action = 'team.add_member'
+        THEN 'GOV-TEAM-MEMBER-ADD'
+
+      WHEN action = 'team.remove_member'
+        THEN 'GOV-TEAM-MEMBER-REMOVE'
+
+      -- OAuth access lifecycle
       WHEN action = 'oauth_access.create'
         THEN 'GOV-OAUTH-ACCESS-CREATE'
 
@@ -69,15 +70,6 @@ rule_matches AS (
 
       WHEN action = 'oauth_access.destroy'
         THEN 'GOV-OAUTH-ACCESS-DESTROY'
-
-      WHEN STARTS_WITH(action, 'org_credential_authorization.')
-        THEN 'GOV-ORG-CREDENTIAL-AUTHORIZATION'
-
-      WHEN action IN (
-        'enterprise.register_self_hosted_runner',
-        'org.register_self_hosted_runner'
-      )
-        THEN 'GOV-RUNNER-REGISTRATION'
 
       ELSE NULL
     END AS rule_id
@@ -96,45 +88,43 @@ classified AS (
       ) THEN 'BRANCH_AND_MERGE_CONTROLS'
 
       WHEN rule_id IN (
-        'GOV-TEAM-MEMBER-ADD',
-        'GOV-TEAM-MEMBER-REMOVE',
         'GOV-ORG-MEMBER-ADD',
-        'GOV-ORG-MEMBER-REMOVE'
+        'GOV-ORG-MEMBER-REMOVE',
+        'GOV-TEAM-MEMBER-ADD',
+        'GOV-TEAM-MEMBER-REMOVE'
       ) THEN 'ACCESS_GOVERNANCE'
 
       WHEN rule_id IN (
         'GOV-OAUTH-ACCESS-CREATE',
         'GOV-OAUTH-ACCESS-REGENERATE',
-        'GOV-OAUTH-ACCESS-DESTROY',
-        'GOV-ORG-CREDENTIAL-AUTHORIZATION'
-      ) THEN 'CREDENTIAL_GOVERNANCE'
-
-      WHEN rule_id = 'GOV-RUNNER-REGISTRATION'
-        THEN 'RUNNER_GOVERNANCE'
+        'GOV-OAUTH-ACCESS-DESTROY'
+      ) THEN 'OAUTH_ACCESS_GOVERNANCE'
     END AS governance_area,
 
     CASE
       WHEN rule_id = 'GOV-BRANCH-OVERRIDE'
         THEN 'PROTECTED_BRANCH_POLICY_OVERRIDE'
+
       WHEN rule_id = 'GOV-BRANCH-PROTECTION-CHANGE'
         THEN 'BRANCH_PROTECTION_CHANGE'
+
       WHEN rule_id = 'GOV-REQUIRED-STATUS-CHECK'
         THEN 'REQUIRED_STATUS_CHECK_CHANGE'
+
       WHEN rule_id = 'GOV-MERGE-SETTING-CHANGE'
         THEN 'MERGE_SETTING_CHANGE'
-      WHEN rule_id IN ('GOV-TEAM-MEMBER-ADD', 'GOV-TEAM-MEMBER-REMOVE')
-        THEN 'TEAM_MEMBERSHIP_CHANGE'
+
       WHEN rule_id IN ('GOV-ORG-MEMBER-ADD', 'GOV-ORG-MEMBER-REMOVE')
         THEN 'ORG_MEMBERSHIP_CHANGE'
+
+      WHEN rule_id IN ('GOV-TEAM-MEMBER-ADD', 'GOV-TEAM-MEMBER-REMOVE')
+        THEN 'TEAM_MEMBERSHIP_CHANGE'
+
       WHEN rule_id IN (
         'GOV-OAUTH-ACCESS-CREATE',
         'GOV-OAUTH-ACCESS-REGENERATE',
         'GOV-OAUTH-ACCESS-DESTROY'
       ) THEN 'OAUTH_ACCESS_LIFECYCLE_CHANGE'
-      WHEN rule_id = 'GOV-ORG-CREDENTIAL-AUTHORIZATION'
-        THEN 'ORG_CREDENTIAL_AUTHORIZATION'
-      WHEN rule_id = 'GOV-RUNNER-REGISTRATION'
-        THEN 'SELF_HOSTED_RUNNER_REGISTRATION'
     END AS governance_event_type,
 
     CASE
@@ -146,16 +136,55 @@ classified AS (
       WHEN rule_id IN (
         'GOV-BRANCH-PROTECTION-CHANGE',
         'GOV-REQUIRED-STATUS-CHECK',
-        'GOV-TEAM-MEMBER-ADD',
         'GOV-ORG-MEMBER-ADD',
+        'GOV-TEAM-MEMBER-ADD',
         'GOV-OAUTH-ACCESS-CREATE',
-        'GOV-OAUTH-ACCESS-REGENERATE',
-        'GOV-ORG-CREDENTIAL-AUTHORIZATION',
-        'GOV-RUNNER-REGISTRATION'
+        'GOV-OAUTH-ACCESS-REGENERATE'
       ) THEN 'MEDIUM'
 
+      WHEN rule_id IN (
+        'GOV-ORG-MEMBER-REMOVE',
+        'GOV-TEAM-MEMBER-REMOVE',
+        'GOV-OAUTH-ACCESS-DESTROY'
+      ) THEN 'LOW'
+
       ELSE 'LOW'
-    END AS review_priority
+    END AS review_priority,
+
+    CASE
+      WHEN rule_id = 'GOV-BRANCH-OVERRIDE'
+        THEN 'Protected branch policy was overridden and should be reviewed.'
+
+      WHEN rule_id = 'GOV-BRANCH-PROTECTION-CHANGE'
+        THEN 'Branch protection configuration changed.'
+
+      WHEN rule_id = 'GOV-REQUIRED-STATUS-CHECK'
+        THEN 'Required CI or status-check gate configuration changed.'
+
+      WHEN rule_id = 'GOV-MERGE-SETTING-CHANGE'
+        THEN 'Repository merge behavior or approval configuration changed.'
+
+      WHEN rule_id = 'GOV-ORG-MEMBER-ADD'
+        THEN 'A user was added to a GitHub organization.'
+
+      WHEN rule_id = 'GOV-ORG-MEMBER-REMOVE'
+        THEN 'A user was removed from a GitHub organization.'
+
+      WHEN rule_id = 'GOV-TEAM-MEMBER-ADD'
+        THEN 'A user was added to a GitHub team that may grant repository access.'
+
+      WHEN rule_id = 'GOV-TEAM-MEMBER-REMOVE'
+        THEN 'A user was removed from a GitHub team.'
+
+      WHEN rule_id = 'GOV-OAUTH-ACCESS-CREATE'
+        THEN 'OAuth access was created.'
+
+      WHEN rule_id = 'GOV-OAUTH-ACCESS-REGENERATE'
+        THEN 'OAuth access credentials were regenerated.'
+
+      WHEN rule_id = 'GOV-OAUTH-ACCESS-DESTROY'
+        THEN 'OAuth access was revoked or destroyed.'
+    END AS review_reason
   FROM rule_matches
   WHERE rule_id IS NOT NULL
 )
@@ -168,7 +197,8 @@ SELECT
   COUNT(*) AS event_count,
   COUNT(DISTINCT org) AS organizations,
   COUNT(DISTINCT repository) AS repositories,
-  COUNT(DISTINCT actor) AS actors
+  COUNT(DISTINCT actor) AS actors,
+  ANY_VALUE(review_reason) AS review_reason
 FROM classified
 GROUP BY
   governance_area,
@@ -177,5 +207,10 @@ GROUP BY
   action
 ORDER BY
   governance_area,
-  review_priority DESC,
+  CASE review_priority
+    WHEN 'HIGH' THEN 1
+    WHEN 'MEDIUM' THEN 2
+    WHEN 'LOW' THEN 3
+    ELSE 4
+  END,
   event_count DESC;
