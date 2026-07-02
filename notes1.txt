@@ -1,0 +1,16 @@
+protected_branch.policy_override              HIGH
+protected_branch.*                            MEDIUM
+required_status_check.*                       MEDIUM
+repo.change_merge_setting                     HIGH
+
+org.add_member                                MEDIUM
+org.remove_member                             MEDIUM
+
+oauth_access.create                           MEDIUM
+oauth_access.regenerate                       MEDIUM
+oauth_access.destroy                          LOW
+
+For team membership, I recommend this split:
+
+team.add_member                               MEDIUM
+team.remove_member                            LOW
