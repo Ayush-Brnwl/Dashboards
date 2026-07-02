@@ -1,312 +1,181 @@
-You should take that feedback seriously, but do not overreact and remove BigQuery. BigQuery is the right analytics store for this project; the expensive part is repeatedly scanning raw event data from Grafana and logical views.
+WITH candidate_events AS (
+  SELECT
+    event_key,
+    event_time,
+    ingested_at,
+    org,
+    repository,
+    actor,
+    action,
+    source_file
+  FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized`
+  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+    AND event_time < CURRENT_TIMESTAMP()
+    AND event_key IS NOT NULL
+    AND action IS NOT NULL
+    AND (
+      action = 'protected_branch.policy_override'
+      OR STARTS_WITH(action, 'protected_branch.')
+      OR STARTS_WITH(action, 'required_status_check.')
+      OR action = 'repo.change_merge_setting'
+      OR action IN (
+        'team.add_member',
+        'team.remove_member',
+        'org.add_member',
+        'org.remove_member'
+      )
+      OR STARTS_WITH(action, 'oauth_access.')
+      OR STARTS_WITH(action, 'org_credential_authorization.')
+      OR action IN (
+        'enterprise.register_self_hosted_runner',
+        'org.register_self_hosted_runner'
+      )
+    )
+),
 
-Your current dashboard showed about 15M events over two days. At that scale, the design must shift from:
+rule_matches AS (
+  SELECT
+    *,
+    CASE
+      WHEN action = 'protected_branch.policy_override'
+        THEN 'GOV-BRANCH-OVERRIDE'
 
-Grafana → logical views → normalized raw audit events
+      WHEN STARTS_WITH(action, 'protected_branch.')
+        THEN 'GOV-BRANCH-PROTECTION-CHANGE'
 
-to:
+      WHEN STARTS_WITH(action, 'required_status_check.')
+        THEN 'GOV-REQUIRED-STATUS-CHECK'
 
-GCS raw audit logs
-      ↓
-BigQuery normalized hot data
-      ↓
-Scheduled curated governance tables + aggregate tables
-      ↓
-Grafana
+      WHEN action = 'repo.change_merge_setting'
+        THEN 'GOV-MERGE-SETTING-CHANGE'
 
-With on-demand BigQuery, cost is driven mainly by bytes scanned per query, not row count. Logical views do not store results; their underlying query is executed each time the view is queried. That means each Grafana refresh and each panel can rescan underlying data unless you pre-aggregate.
+      WHEN action = 'team.add_member'
+        THEN 'GOV-TEAM-MEMBER-ADD'
 
-First: your event types are good enough for a valuable governance layer
+      WHEN action = 'team.remove_member'
+        THEN 'GOV-TEAM-MEMBER-REMOVE'
 
-Your sample has several strong governance categories.
+      WHEN action = 'org.add_member'
+        THEN 'GOV-ORG-MEMBER-ADD'
 
-Governance area	Actions seen	What we should do
-Branch-control changes	protected_branch.policy_override, protected_branch.*, required_status_check.create	High review priority
-Merge-control changes	repo.change_merge_setting	High review priority
-Access lifecycle	team.add_member, team.remove_member, org.add_member	Medium review priority
-Credential / OAuth governance	oauth_access.create, regenerate, destroy, org_credential_authorization.grant	Medium to high review priority
-Security posture trend	secret_scanning_scan.completed, repository_vulnerability_alert.*	Dashboard trend only; do not duplicate Chronicle alerts
-Review / merge activity	pull_request.merge, review submit/dismiss	Useful context, not initial risk scoring
-Repository downloads	repo.download_zip	Keep as review context; do not label it “data exfiltration” without a policy and supporting context
-SSO activity	business.sso_response	Authentication visibility, not initial governance scoring
+      WHEN action = 'org.remove_member'
+        THEN 'GOV-ORG-MEMBER-REMOVE'
 
-The most important decision is this:
+      WHEN action = 'oauth_access.create'
+        THEN 'GOV-OAUTH-ACCESS-CREATE'
 
-Do not classify all audit events. Classify only governance-sensitive actions, then aggregate them.
+      WHEN action = 'oauth_access.regenerate'
+        THEN 'GOV-OAUTH-ACCESS-REGENERATE'
 
-That immediately cuts the data used by the dashboard.
+      WHEN action = 'oauth_access.destroy'
+        THEN 'GOV-OAUTH-ACCESS-DESTROY'
 
-Cost-optimized target design
-Layer 1 — GCS remains the raw source of truth
-GitHub Enterprise Audit Logs
-        ↓
-GCS .json.log.gz files
+      WHEN STARTS_WITH(action, 'org_credential_authorization.')
+        THEN 'GOV-ORG-CREDENTIAL-AUTHORIZATION'
 
-Keep raw logs in GCS according to your approved retention policy.
+      WHEN action IN (
+        'enterprise.register_self_hosted_runner',
+        'org.register_self_hosted_runner'
+      )
+        THEN 'GOV-RUNNER-REGISTRATION'
 
-Do not use BigQuery as the only long-term raw archive. GCS is already storing compressed audit logs efficiently and is the right evidence/archive layer.
+      ELSE NULL
+    END AS rule_id
+  FROM candidate_events
+),
 
-Layer 2 — BigQuery normalized hot table
+classified AS (
+  SELECT
+    *,
+    CASE
+      WHEN rule_id IN (
+        'GOV-BRANCH-OVERRIDE',
+        'GOV-BRANCH-PROTECTION-CHANGE',
+        'GOV-REQUIRED-STATUS-CHECK',
+        'GOV-MERGE-SETTING-CHANGE'
+      ) THEN 'BRANCH_AND_MERGE_CONTROLS'
 
-Keep your existing table:
+      WHEN rule_id IN (
+        'GOV-TEAM-MEMBER-ADD',
+        'GOV-TEAM-MEMBER-REMOVE',
+        'GOV-ORG-MEMBER-ADD',
+        'GOV-ORG-MEMBER-REMOVE'
+      ) THEN 'ACCESS_GOVERNANCE'
 
-github_audit_events_normalized
+      WHEN rule_id IN (
+        'GOV-OAUTH-ACCESS-CREATE',
+        'GOV-OAUTH-ACCESS-REGENERATE',
+        'GOV-OAUTH-ACCESS-DESTROY',
+        'GOV-ORG-CREDENTIAL-AUTHORIZATION'
+      ) THEN 'CREDENTIAL_GOVERNANCE'
 
-But treat it as a hot operational table, not the table Grafana reads for every panel.
+      WHEN rule_id = 'GOV-RUNNER-REGISTRATION'
+        THEN 'RUNNER_GOVERNANCE'
+    END AS governance_area,
 
-Recommended retention approach, subject to compliance approval:
+    CASE
+      WHEN rule_id = 'GOV-BRANCH-OVERRIDE'
+        THEN 'PROTECTED_BRANCH_POLICY_OVERRIDE'
+      WHEN rule_id = 'GOV-BRANCH-PROTECTION-CHANGE'
+        THEN 'BRANCH_PROTECTION_CHANGE'
+      WHEN rule_id = 'GOV-REQUIRED-STATUS-CHECK'
+        THEN 'REQUIRED_STATUS_CHECK_CHANGE'
+      WHEN rule_id = 'GOV-MERGE-SETTING-CHANGE'
+        THEN 'MERGE_SETTING_CHANGE'
+      WHEN rule_id IN ('GOV-TEAM-MEMBER-ADD', 'GOV-TEAM-MEMBER-REMOVE')
+        THEN 'TEAM_MEMBERSHIP_CHANGE'
+      WHEN rule_id IN ('GOV-ORG-MEMBER-ADD', 'GOV-ORG-MEMBER-REMOVE')
+        THEN 'ORG_MEMBERSHIP_CHANGE'
+      WHEN rule_id IN (
+        'GOV-OAUTH-ACCESS-CREATE',
+        'GOV-OAUTH-ACCESS-REGENERATE',
+        'GOV-OAUTH-ACCESS-DESTROY'
+      ) THEN 'OAUTH_ACCESS_LIFECYCLE_CHANGE'
+      WHEN rule_id = 'GOV-ORG-CREDENTIAL-AUTHORIZATION'
+        THEN 'ORG_CREDENTIAL_AUTHORIZATION'
+      WHEN rule_id = 'GOV-RUNNER-REGISTRATION'
+        THEN 'SELF_HOSTED_RUNNER_REGISTRATION'
+    END AS governance_event_type,
 
-Normalized detailed events: 30–90 days
-Governance events:          365–400 days
-Hourly/daily aggregates:    18–24 months
-Raw GCS audit files:        existing approved retention
+    CASE
+      WHEN rule_id IN (
+        'GOV-BRANCH-OVERRIDE',
+        'GOV-MERGE-SETTING-CHANGE'
+      ) THEN 'HIGH'
 
-BigQuery supports partition expiration so old partitions can be automatically removed; however, do not configure deletion until security/compliance confirms the retention requirement.
+      WHEN rule_id IN (
+        'GOV-BRANCH-PROTECTION-CHANGE',
+        'GOV-REQUIRED-STATUS-CHECK',
+        'GOV-TEAM-MEMBER-ADD',
+        'GOV-ORG-MEMBER-ADD',
+        'GOV-OAUTH-ACCESS-CREATE',
+        'GOV-OAUTH-ACCESS-REGENERATE',
+        'GOV-ORG-CREDENTIAL-AUTHORIZATION',
+        'GOV-RUNNER-REGISTRATION'
+      ) THEN 'MEDIUM'
 
-Layer 3 — Curated governance-events table
-
-Instead of a logical view called v_github_governance_events, create a physical curated table:
-
-github_governance_events
-
-Only store selected fields:
-
-event_key
-event_time
-event_date
-org
-repository
-actor
-action
-
-governance_area
-governance_event_type
-review_priority
-review_reason
-rule_id
-rule_version
-
-source_file
-ingested_at
-
-Do not copy these into this dashboard-facing table:
-
-raw_event_json
-actor_ip
-hashed_token
-token_id
-request_access_security_header
-external_identity_username
-
-That keeps the governance table smaller, safer, and cheaper to query.
-
-Recommended partitioning and clustering:
-
-Partition: event_date
-Cluster: governance_area, review_priority, org, repository
-
-BigQuery partitioning reduces bytes read when queries filter on the partition column, and clustering helps prune data when queries filter on clustered columns.
-
-Layer 4 — Dashboard aggregate tables
-
-Create physical aggregate tables that Grafana reads instead of raw events.
-
-github_governance_metrics_15m
-github_governance_daily_metrics
-github_governance_repository_daily
-github_governance_action_daily
-github_audit_pipeline_health_15m
-
-Example:
-
-github_governance_metrics_15m
---------------------------------
-metric_time
-governance_area
-review_priority
-event_count
-distinct_org_count
-distinct_repository_count
-distinct_actor_count
-
-Then Grafana runs tiny queries like:
+      ELSE 'LOW'
+    END AS review_priority
+  FROM rule_matches
+  WHERE rule_id IS NOT NULL
+)
 
 SELECT
-  metric_time AS time,
-  SUM(event_count) AS events
-FROM `github_governance_metrics_15m`
-WHERE $__timeFilter(metric_time)
-GROUP BY metric_time
-ORDER BY metric_time;
-
-That is far cheaper than re-reading millions of audit rows for every dashboard panel.
-
-How to generate the aggregate tables
-
-Use scheduled queries every 15 minutes.
-
-Raw normalized events
-        ↓
-Scheduled query every 15 min
-        ↓
-Governance events table
-        ↓
-Scheduled aggregation
-        ↓
-15-minute / daily dashboard tables
-        ↓
-Grafana
-
-Scheduled queries are appropriate here because they let you write flexible GoogleSQL and persist results into destination tables on a recurring schedule.
-
-For your case, I would use scheduled queries rather than materialized views initially.
-
-Why:
-
-Governance classification will have CASE rules and multiple action patterns.
-You need controlled backfill and rule-version tracking.
-You may need to reclassify historical events when rules change.
-Grafana should query simple aggregates, not complex classification SQL.
-
-Materialized views can reduce repeated compute for compatible pre-aggregations, but they have design limitations. They are worth considering later for simple metrics once query patterns stabilize.
-
-Immediate cost controls to implement
-1. Require partition filters
-
-Your normalized table is already partitioned by event_time.
-
-Add:
-
-require_partition_filter = true
-
-to the normalized events table.
-
-Add the same protection to:
-
-github_governance_events
-github_governance_metrics_15m
-github_governance_daily_metrics
-github_audit_pipeline_health
-
-This prevents accidental full-table scans. BigQuery can reject queries that do not include a usable partition filter when this setting is enabled.
-
-Do this only after confirming every dashboard query includes one of:
-
-WHERE $__timeFilter(event_time)
-
-or:
-
-WHERE $__timeFilter(started_at)
-2. Stop using SELECT *
-
-Never expose raw_event_json through dashboard views.
-
-BigQuery is columnar, so selecting only the required fields avoids scanning unrelated columns. The biggest risk is a dashboard/view query using SELECT * against the normalized event table.
-
-3. Keep Grafana refresh conservative
-
-Your current refresh is:
-
-5 minutes
-
-That is reasonable for Pipeline Health.
-
-For Governance Overview, use:
-
-15 minutes
-
-Do not use 30-second or 1-minute dashboard refreshes against BigQuery. Each panel can execute a separate query, and a dashboard opened by several users multiplies that cost.
-
-4. Set dashboard defaults to short time ranges
-
-Recommended defaults:
-
-Pipeline Health:      Last 24 hours
-Governance Overview:  Last 7 days
-Executive Summary:    Last 30 days
-
-A user can still choose 90 days, but the default should not scan 90 days every time someone opens Grafana.
-
-5. Separate operational and management dashboards
-Dashboard 1: Audit Pipeline Health
-- 24-hour default
-- 5-minute refresh
-- reads health aggregates
-
-Dashboard 2: Governance Overview
-- 7-day default
-- 15-minute refresh
-- reads governance aggregate tables
-
-Dashboard 3: Monthly Governance Report
-- 30/90-day range
-- refresh off
-- reads daily aggregates only
-
-This stops manager dashboards from accidentally behaving like real-time analytics systems.
-
-6. Measure actual spend before optimizing blindly
-
-Create a lightweight daily cost check from BigQuery job metadata.
-
-Use the region where your BigQuery dataset/jobs run. Do not assume it is the same as the Cloud Function region.
-
-SELECT
-  DATE(creation_time) AS query_date,
-  user_email,
-  COUNT(*) AS query_jobs,
-  ROUND(SUM(total_bytes_billed) / POW(1024, 3), 3) AS tebibytes_billed
-FROM `YOUR_PROJECT_ID.region-YOUR_BIGQUERY_LOCATION.INFORMATION_SCHEMA.JOBS_BY_PROJECT`
-WHERE creation_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
-  AND job_type = 'QUERY'
-  AND statement_type = 'SELECT'
-GROUP BY query_date, user_email
-ORDER BY query_date DESC, tebibytes_billed DESC;
-
-total_bytes_billed is available in the BigQuery jobs metadata for on-demand projects. Use this query manually or once daily, not as a Grafana panel; INFORMATION_SCHEMA queries are not cached and can themselves incur a minimum processing charge.
-
-Also use BigQuery dry runs before merging expensive scheduled queries. A dry run validates SQL and estimates bytes processed without charging for the query execution.
-
-Recommended next milestone change
-
-Do not implement Milestone 2 as a logical view anymore.
-
-Instead, change Milestone 2 to:
-
-Milestone 2 — Cost-Optimized Governance Classification
-Deliverables
-github_governance_events physical curated table
-Scheduled classification query every 15 minutes
-github_governance_metrics_15m aggregate table
-github_governance_daily_metrics aggregate table
-Grafana Governance Overview reading only aggregates
-Partition-filter enforcement
-Cost-monitoring query/documentation
-First PR for the new design
-
-Title
-
-Add cost-optimized governance event and aggregate tables
-
-Description
-
-This PR introduces a curated and cost-optimized analytics layer for GitHub Governance Intelligence.
-
-Instead of querying raw normalized audit events directly from Grafana, the platform will:
-- classify selected governance-sensitive audit actions into a curated governance-events table
-- create time-based aggregate tables for dashboard use
-- retain only dashboard-safe columns in the curated layer
-- use partitioning, clustering, and partition-filter requirements to reduce query scan volume
-- keep raw audit-log evidence in the existing GCS archive and normalized BigQuery table
-
-This reduces repeated BigQuery scans from Grafana while keeping governance reporting explainable and auditable.
-My recommendation on priorities
-
-Do these in order:
-
-1. Add partition-filter protection.
-2. Create curated governance-events table.
-3. Create 15-minute and daily aggregate tables.
-4. Switch Governance Overview dashboard to aggregates.
-5. Add retention only after compliance confirms policy.
-6. Measure real query spend after one week.
+  governance_area,
+  governance_event_type,
+  review_priority,
+  action,
+  COUNT(*) AS event_count,
+  COUNT(DISTINCT org) AS organizations,
+  COUNT(DISTINCT repository) AS repositories,
+  COUNT(DISTINCT actor) AS actors
+FROM classified
+GROUP BY
+  governance_area,
+  governance_event_type,
+  review_priority,
+  action
+ORDER BY
+  governance_area,
+  review_priority DESC,
+  event_count DESC;
