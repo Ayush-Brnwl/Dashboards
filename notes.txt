@@ -1,19 +1,16 @@
-SELECT
-  event_time,
-  action,
-  actor AS initiated_by,
-  user AS affected_identity,
-  org,
-  repository,
-  programmatic_access_type,
-  source_file,
-  event_key
-FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized`
-WHERE event_time >= TIMESTAMP('2026-01-01 00:00:00+00')
-  AND event_time < TIMESTAMP('2026-07-01 00:00:00+00')
-  AND (
-    action IN ('user.suspend', 'user.unsuspend')
-    OR STARTS_WITH(action, 'external_identity.')
-  )
-ORDER BY event_time DESC
-LIMIT 500;
+Action	Governance area	Event type	Priority
+protected_branch.policy_override	BRANCH_AND_MERGE_CONTROLS	PROTECTED_BRANCH_POLICY_OVERRIDE	High
+protected_branch.* excluding policy_override	BRANCH_AND_MERGE_CONTROLS	BRANCH_PROTECTION_CHANGE	Medium
+required_status_check.*	BRANCH_AND_MERGE_CONTROLS	REQUIRED_STATUS_CHECK_CHANGE	Medium
+repo.change_merge_setting	BRANCH_AND_MERGE_CONTROLS	MERGE_SETTING_CHANGE	High
+org.add_member	ACCESS_GOVERNANCE	ORG_MEMBERSHIP_CHANGE	Medium
+org.remove_member	ACCESS_GOVERNANCE	ORG_MEMBERSHIP_CHANGE	Low
+team.add_member	ACCESS_GOVERNANCE	TEAM_MEMBERSHIP_CHANGE	Medium
+team.remove_member	ACCESS_GOVERNANCE	TEAM_MEMBERSHIP_CHANGE	Low
+oauth_access.create	OAUTH_ACCESS_GOVERNANCE	OAUTH_ACCESS_LIFECYCLE_CHANGE	Medium
+oauth_access.regenerate	OAUTH_ACCESS_GOVERNANCE	OAUTH_ACCESS_LIFECYCLE_CHANGE	Medium
+oauth_access.destroy	OAUTH_ACCESS_GOVERNANCE	OAUTH_ACCESS_LIFECYCLE_CHANGE	Low
+user.suspend for a registered critical technical account	IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY	CRITICAL_TECHNICAL_ACCOUNT_SUSPENDED	High
+user.unsuspend for a registered critical technical account	IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY	CRITICAL_TECHNICAL_ACCOUNT_RESTORED	Low
+user.suspend for any other account	ACCESS_GOVERNANCE	USER_ACCOUNT_SUSPENDED	Medium
+user.unsuspend for any other account	ACCESS_GOVERNANCE	USER_ACCOUNT_RESTORED	Low
