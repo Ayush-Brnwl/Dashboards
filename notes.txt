@@ -2,7 +2,8 @@ SELECT
   COUNT(*) AS total_rows,
   COUNT(DISTINCT governance_event_id) AS distinct_governance_event_ids,
   COUNT(*) - COUNT(DISTINCT governance_event_id) AS duplicate_rows
-FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`;
+FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
+WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 96 HOUR);
 
 SELECT
   governance_area,
@@ -12,6 +13,7 @@ SELECT
   rule_version,
   COUNT(*) AS events
 FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
+WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 96 HOUR)
 GROUP BY
   governance_area,
   governance_event_type,
