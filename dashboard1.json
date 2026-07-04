@@ -69,7 +69,7 @@
       }
     ]
   },
-  "description": "Executive-friendly view of curated GitHub governance events. Semantic colors differentiate review priority and governance domains.",
+  "description": "Executive-friendly view of curated GitHub governance events. v3 fixes the governance-area donut aggregation and applies semantic priority colors.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -148,7 +148,7 @@
         "overrides": []
       },
       "options": {
-        "colorMode": "background_gradient",
+        "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
@@ -216,7 +216,7 @@
         "overrides": []
       },
       "options": {
-        "colorMode": "background_gradient",
+        "colorMode": "value",
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
@@ -390,7 +390,7 @@
       "id": 8,
       "type": "barchart",
       "title": "Governance Events by Review Priority",
-      "description": "Review-priority distribution. High = immediate governance review; Medium = review in normal governance cadence; Low = lifecycle/context event.",
+      "description": "Review-priority distribution. High is red, Medium is orange, and Low is green. Priority is governance review priority, not incident severity.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -458,6 +458,10 @@
                   "mode": "fixed",
                   "fixedColor": "#E24D42"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "High"
               }
             ]
           },
@@ -473,6 +477,10 @@
                   "mode": "fixed",
                   "fixedColor": "#FF9830"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "Medium"
               }
             ]
           },
@@ -488,20 +496,27 @@
                   "mode": "fixed",
                   "fixedColor": "#299C46"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "Low"
               }
             ]
           }
         ]
       },
       "options": {
-        "barRadius": 0,
-        "barWidth": 0.8,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
+        "barRadius": 0.12,
+        "barWidth": 0.65,
+        "fullHighlight": true,
+        "groupWidth": 0.55,
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true,
+          "values": [
+            "lastNotNull"
+          ]
         },
         "orientation": "vertical",
         "showValue": "always",
@@ -522,7 +537,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n  review_priority,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nGROUP BY review_priority\nORDER BY CASE review_priority\n  WHEN 'HIGH' THEN 1\n  WHEN 'MEDIUM' THEN 2\n  WHEN 'LOW' THEN 3\n  ELSE 4\nEND",
+          "rawSql": "SELECT\n  'Governance events' AS category,\n  COUNTIF(review_priority = 'HIGH') AS HIGH,\n  COUNTIF(review_priority = 'MEDIUM') AS MEDIUM,\n  COUNTIF(review_priority = 'LOW') AS LOW\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -638,10 +653,8 @@
         },
         "pieType": "donut",
         "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
+          "values": true,
+          "calcs": [],
           "fields": ""
         },
         "tooltip": {
@@ -1313,6 +1326,6 @@
   "timezone": "browser",
   "title": "GitHub Governance Overview",
   "uid": "github-governance-overview",
-  "version": 2,
+  "version": 3,
   "weekStart": ""
 }
