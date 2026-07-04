@@ -69,7 +69,7 @@
       }
     ]
   },
-  "description": "Executive-friendly GitHub Governance Overview. v6 replaces the categorical priority chart with a horizontal Bar Gauge to remove Grafana's unwanted vertical Name axis.",
+  "description": "Executive-friendly view of curated GitHub governance events. Includes governance posture, review queue, control-change trends, and critical technical-account lifecycle events.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -1019,7 +1019,7 @@
       "id": 14,
       "type": "table",
       "title": "Critical Technical Account Lifecycle Events",
-      "description": "Suspension/restoration events for HIGH critical runner technical accounts. Suspensions are high review priority; restorations provide recovery context.",
+      "description": "Suspension/restoration events for HIGH critical runner technical accounts. High-priority suspensions are shown first, followed by lower-priority restoration events.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -1077,7 +1077,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n  event_time,\n  governance_event_type,\n  review_priority,\n  actor AS initiated_by,\n  affected_identity,\n  review_reason\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_area = 'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\nORDER BY event_time DESC\nLIMIT 100",
+          "rawSql": "SELECT\n  event_time,\n  governance_event_type,\n  review_priority,\n  actor AS initiated_by,\n  affected_identity,\n  review_reason\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_area = 'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\nORDER BY\n  CASE review_priority\n    WHEN 'HIGH' THEN 1\n    WHEN 'MEDIUM' THEN 2\n    WHEN 'LOW' THEN 3\n    ELSE 4\n  END,\n  event_time DESC\nLIMIT 100",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -1284,13 +1284,7 @@
     "audit",
     "bigquery",
     "executive",
-    "governance-review",
-    "v4",
-    "semantic-colors",
-    "v5",
-    "layout-polish",
-    "v6",
-    "bar-gauge"
+    "governance-review"
   ],
   "templating": {
     "list": []
@@ -1316,8 +1310,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "GitHub Governance Overview v6",
-  "uid": "github-governance-overview-v6",
+  "title": "GitHub Governance Overview",
+  "uid": "github-governance-overview",
   "version": 1,
   "weekStart": ""
 }
