@@ -69,7 +69,7 @@
       }
     ]
   },
-  "description": "Manager-ready view of curated GitHub Governance events: control changes, access lifecycle, OAuth governance, and critical technical-account availability.",
+  "description": "Executive-friendly view of curated GitHub governance events. Semantic colors differentiate review priority and governance domains.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -132,6 +132,14 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 100
               }
             ]
           },
@@ -140,7 +148,7 @@
         "overrides": []
       },
       "options": {
-        "colorMode": "value",
+        "colorMode": "background_gradient",
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
@@ -196,6 +204,10 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
               }
             ]
           },
@@ -204,7 +216,7 @@
         "overrides": []
       },
       "options": {
-        "colorMode": "value",
+        "colorMode": "background_gradient",
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
@@ -378,7 +390,7 @@
       "id": 8,
       "type": "barchart",
       "title": "Governance Events by Review Priority",
-      "description": null,
+      "description": "Review-priority distribution. High = immediate governance review; Medium = review in normal governance cadence; Low = lifecycle/context event.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -398,10 +410,10 @@
             "axisCenteredZero": false,
             "axisColorMode": "text",
             "axisLabel": "",
-            "axisPlacement": "auto",
+            "axisPlacement": "left",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 80,
+            "fillOpacity": 100,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -433,7 +445,53 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HIGH"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#E24D42"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MEDIUM"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LOW"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#299C46"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "barRadius": 0,
@@ -441,16 +499,16 @@
         "fullHighlight": false,
         "groupWidth": 0.7,
         "legend": {
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": false
         },
-        "orientation": "auto",
-        "showValue": "auto",
+        "orientation": "vertical",
+        "showValue": "always",
         "stacking": "none",
         "tooltip": {
           "mode": "single",
-          "sort": "none"
+          "sort": "descending"
         },
         "xTickLabelRotation": 0,
         "xTickLabelSpacing": 0
@@ -472,9 +530,9 @@
     },
     {
       "id": 9,
-      "type": "barchart",
+      "type": "piechart",
       "title": "Governance Events by Area",
-      "description": null,
+      "description": "Distribution of classified governance events by governance domain. The availability slice highlights lifecycle events affecting registered critical technical identities.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -490,34 +548,6 @@
           "color": {
             "mode": "palette-classic"
           },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -529,27 +559,95 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "BRANCH_AND_MERGE_CONTROLS"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#5794F2"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ACCESS_GOVERNANCE"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "OAUTH_ACCESS_GOVERNANCE"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#B877D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#E24D42"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
-        "barRadius": 0,
-        "barWidth": 0.8,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
         "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
         },
-        "orientation": "auto",
-        "showValue": "auto",
-        "stacking": "none",
+        "pieType": "donut",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
         "tooltip": {
           "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
+          "sort": "descending"
+        }
       },
       "targets": [
         {
@@ -570,7 +668,7 @@
       "id": 10,
       "type": "timeseries",
       "title": "Governance Event Trend",
-      "description": "Daily volume of classified governance events by review priority.",
+      "description": "Daily governance-event volume, stacked by review priority.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -592,8 +690,8 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 15,
+            "drawStyle": "bars",
+            "fillOpacity": 85,
             "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
@@ -602,16 +700,16 @@
             },
             "insertNulls": false,
             "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineWidth": 0,
             "pointSize": 4,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -628,12 +726,61 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HIGH"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#E24D42"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MEDIUM"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LOW"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#299C46"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
+          "calcs": [
+            "lastNotNull",
+            "sum"
+          ],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
@@ -708,7 +855,44 @@
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "governance_event_type"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 280
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_reason"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 420
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "event_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 180
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "cellHeight": "sm",
@@ -764,8 +948,8 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 15,
+            "drawStyle": "bars",
+            "fillOpacity": 75,
             "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
@@ -774,16 +958,16 @@
             },
             "insertNulls": false,
             "lineInterpolation": "linear",
-            "lineWidth": 1,
+            "lineWidth": 0,
             "pointSize": 4,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "auto",
+            "showPoints": "never",
             "spanNulls": false,
             "stacking": {
               "group": "A",
-              "mode": "none"
+              "mode": "normal"
             },
             "thresholdsStyle": {
               "mode": "off"
@@ -804,8 +988,11 @@
       },
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
+          "calcs": [
+            "lastNotNull",
+            "sum"
+          ],
+          "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
         },
@@ -833,7 +1020,7 @@
       "id": 14,
       "type": "table",
       "title": "Critical Technical Account Lifecycle Events",
-      "description": "Historical and current lifecycle events affecting runner-related critical technical identities.",
+      "description": "Suspension/restoration events for HIGH critical runner technical accounts. Suspensions are high review priority; restorations provide recovery context.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -901,7 +1088,7 @@
       "id": 15,
       "type": "barchart",
       "title": "Top Affected Organizations",
-      "description": null,
+      "description": "Top organizations or enterprise-scoped events by classified governance-event volume.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -997,7 +1184,7 @@
       "id": 16,
       "type": "barchart",
       "title": "Top Affected Repositories",
-      "description": null,
+      "description": "Repositories with the highest classified governance-event volume.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -1096,7 +1283,9 @@
     "github",
     "governance",
     "audit",
-    "bigquery"
+    "bigquery",
+    "executive",
+    "governance-review"
   ],
   "templating": {
     "list": []
@@ -1124,6 +1313,6 @@
   "timezone": "browser",
   "title": "GitHub Governance Overview",
   "uid": "github-governance-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
