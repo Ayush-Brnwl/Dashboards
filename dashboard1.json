@@ -69,7 +69,7 @@
       }
     ]
   },
-  "description": "Executive-friendly view of curated GitHub governance events. v3 fixes the governance-area donut aggregation and applies semantic priority colors.",
+  "description": "Executive-friendly GitHub Governance Overview. v4 uses pivoted queries to ensure the donut and priority bars render reliably with semantic colors.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -507,9 +507,9 @@
       },
       "options": {
         "barRadius": 0.12,
-        "barWidth": 0.65,
+        "barWidth": 0.62,
         "fullHighlight": true,
-        "groupWidth": 0.55,
+        "groupWidth": 0.6,
         "legend": {
           "displayMode": "table",
           "placement": "bottom",
@@ -537,7 +537,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n  'Governance events' AS category,\n  COUNTIF(review_priority = 'HIGH') AS HIGH,\n  COUNTIF(review_priority = 'MEDIUM') AS MEDIUM,\n  COUNTIF(review_priority = 'LOW') AS LOW\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)",
+          "rawSql": "SELECT\n  'Review priority' AS category,\n  COUNTIF(review_priority = 'HIGH') AS HIGH,\n  COUNTIF(review_priority = 'MEDIUM') AS MEDIUM,\n  COUNTIF(review_priority = 'LOW') AS LOW\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -547,7 +547,7 @@
       "id": 9,
       "type": "piechart",
       "title": "Governance Events by Area",
-      "description": "Distribution of classified governance events by governance domain. The availability slice highlights lifecycle events affecting registered critical technical identities.",
+      "description": "Share of classified events by governance area. Uses distinct, stable colors for each domain.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -587,6 +587,10 @@
                   "mode": "fixed",
                   "fixedColor": "#5794F2"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "Branch & merge controls"
               }
             ]
           },
@@ -602,6 +606,10 @@
                   "mode": "fixed",
                   "fixedColor": "#FF9830"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "Access governance"
               }
             ]
           },
@@ -617,6 +625,10 @@
                   "mode": "fixed",
                   "fixedColor": "#B877D9"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "OAuth access governance"
               }
             ]
           },
@@ -632,6 +644,10 @@
                   "mode": "fixed",
                   "fixedColor": "#E24D42"
                 }
+              },
+              {
+                "id": "displayName",
+                "value": "Technical account availability"
               }
             ]
           }
@@ -653,8 +669,10 @@
         },
         "pieType": "donut",
         "reduceOptions": {
-          "values": true,
-          "calcs": [],
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "tooltip": {
@@ -671,7 +689,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n  governance_area,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nGROUP BY governance_area\nORDER BY events DESC",
+          "rawSql": "SELECT\n  COUNTIF(governance_area = 'BRANCH_AND_MERGE_CONTROLS') AS BRANCH_AND_MERGE_CONTROLS,\n  COUNTIF(governance_area = 'ACCESS_GOVERNANCE') AS ACCESS_GOVERNANCE,\n  COUNTIF(governance_area = 'OAUTH_ACCESS_GOVERNANCE') AS OAUTH_ACCESS_GOVERNANCE,\n  COUNTIF(governance_area = 'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY') AS IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -1298,7 +1316,9 @@
     "audit",
     "bigquery",
     "executive",
-    "governance-review"
+    "governance-review",
+    "v4",
+    "semantic-colors"
   ],
   "templating": {
     "list": []
@@ -1324,8 +1344,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "GitHub Governance Overview",
-  "uid": "github-governance-overview",
-  "version": 3,
+  "title": "GitHub Governance Overview v4",
+  "uid": "github-governance-overview-v4",
+  "version": 1,
   "weekStart": ""
 }
