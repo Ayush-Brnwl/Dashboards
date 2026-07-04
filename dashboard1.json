@@ -69,7 +69,7 @@
       }
     ]
   },
-  "description": "Executive-friendly GitHub Governance Overview. v4 uses pivoted queries to ensure the donut and priority bars render reliably with semantic colors.",
+  "description": "Executive-friendly GitHub Governance Overview. v5 removes the unused vertical category label from the review-priority chart while preserving semantic colors.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -537,7 +537,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n  'Review priority' AS category,\n  COUNTIF(review_priority = 'HIGH') AS HIGH,\n  COUNTIF(review_priority = 'MEDIUM') AS MEDIUM,\n  COUNTIF(review_priority = 'LOW') AS LOW\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)",
+          "rawSql": "SELECT\n  '' AS category,\n  COUNTIF(review_priority = 'HIGH') AS HIGH,\n  COUNTIF(review_priority = 'MEDIUM') AS MEDIUM,\n  COUNTIF(review_priority = 'LOW') AS LOW\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -1318,7 +1318,9 @@
     "executive",
     "governance-review",
     "v4",
-    "semantic-colors"
+    "semantic-colors",
+    "v5",
+    "layout-polish"
   ],
   "templating": {
     "list": []
@@ -1344,8 +1346,8 @@
     ]
   },
   "timezone": "browser",
-  "title": "GitHub Governance Overview v4",
-  "uid": "github-governance-overview-v4",
+  "title": "GitHub Governance Overview v5",
+  "uid": "github-governance-overview-v5",
   "version": 1,
   "weekStart": ""
 }
