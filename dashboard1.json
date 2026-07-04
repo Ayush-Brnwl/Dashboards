@@ -14,24 +14,24 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "11.6.0"
+      "version": "10.0.0"
     },
     {
       "type": "datasource",
       "id": "grafana-bigquery-datasource",
       "name": "Google BigQuery",
-      "version": "3.0.0"
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "barchart",
+      "name": "Bar chart",
+      "version": ""
     },
     {
       "type": "panel",
       "id": "stat",
       "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
       "version": ""
     },
     {
@@ -45,15 +45,34 @@
       "id": "text",
       "name": "Text",
       "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
     }
   ],
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
   },
-  "description": "Operational health dashboard for the GitHub Governance audit-log processor.",
+  "description": "Manager-ready view of curated GitHub Governance events: control changes, access lifecycle, OAuth governance, and critical technical-account availability.",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
+  "graphTooltip": 0,
   "id": null,
   "links": [],
   "liveNow": false,
@@ -61,7 +80,7 @@
     {
       "id": 1,
       "type": "text",
-      "title": "Pipeline health scope",
+      "title": "Governance overview scope",
       "gridPos": {
         "h": 3,
         "w": 24,
@@ -70,100 +89,36 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "**GitHub Governance \u2014 Audit Pipeline Health**  \nTracks GitHub Enterprise audit-log ingestion from GCS into BigQuery: throughput, file-level success, parse quality, duration, deduplication, and freshness. `_check/` marker objects are excluded. Source event lag includes historical backfill until backlog processing completes."
-      },
-      "pluginVersion": "11.6.0",
-      "transparent": false
+        "content": "**GitHub Governance Overview**  \nCurated, deduplicated, rule-versioned governance events only. Use this dashboard for governance review and investigation\u2014not as a security incident console. Default range is **Last 180 days** to include historical runner technical-account lifecycle evidence."
+      }
     },
     {
       "id": 2,
-      "type": "stat",
-      "title": "Last successful processing age",
-      "description": "Seconds since the most recent successful audit-file processing run.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
+      "type": "row",
+      "title": "Executive summary",
+      "collapsed": false,
       "gridPos": {
-        "h": 5,
-        "w": 3,
+        "h": 1,
+        "w": 24,
         "x": 0,
         "y": 3
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 300
-              },
-              {
-                "color": "red",
-                "value": 900
-              }
-            ]
-          },
-          "unit": "s",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false,
-        "wideLayout": true
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 1,
-          "rawQuery": true,
-          "rawSql": "SELECT TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), MAX(completed_at), SECOND) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE processing_status = 'SUCCESS'\n              AND NOT STARTS_WITH(source_file, '_check/')",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ]
+      "panels": []
     },
     {
       "id": 3,
       "type": "stat",
-      "title": "Pipeline success rate",
-      "description": "Successful processing runs as a percentage of all real audit-file runs.",
+      "title": "High-Priority Governance Events",
+      "description": "High review-priority governance changes in the selected time range.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
-        "x": 3,
-        "y": 3
+        "w": 6,
+        "x": 0,
+        "y": 4
       },
       "fieldConfig": {
         "defaults": {
@@ -175,25 +130,20 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 99.0
-              },
-              {
                 "color": "green",
-                "value": 99.9
+                "value": null
               }
             ]
           },
-          "unit": "percent",
-          "decimals": 2
+          "unit": "short"
         },
         "overrides": []
       },
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
         "reduceOptions": {
           "values": false,
           "calcs": [
@@ -201,15 +151,9 @@
           ],
           "fields": ""
         },
-        "orientation": "auto",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false,
+        "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -219,7 +163,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT SAFE_MULTIPLY(\n              SAFE_DIVIDE(COUNTIF(processing_status = 'SUCCESS'), COUNT(*)),\n              100\n            ) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority = 'HIGH'",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -228,17 +172,17 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Files processed",
-      "description": "File-level processing runs in the selected period.",
+      "title": "Critical Technical Account Suspensions",
+      "description": "Suspensions affecting registered HIGH critical technical identities.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
+        "w": 6,
         "x": 6,
-        "y": 3
+        "y": 4
       },
       "fieldConfig": {
         "defaults": {
@@ -255,12 +199,15 @@
               }
             ]
           },
-          "unit": "short",
-          "decimals": 0
+          "unit": "short"
         },
         "overrides": []
       },
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
         "reduceOptions": {
           "values": false,
           "calcs": [
@@ -268,15 +215,9 @@
           ],
           "fields": ""
         },
-        "orientation": "auto",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false,
+        "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -286,7 +227,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_event_type = 'CRITICAL_TECHNICAL_ACCOUNT_SUSPENDED'",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -295,17 +236,17 @@
     {
       "id": 5,
       "type": "stat",
-      "title": "Events inserted",
-      "description": "Normalized audit events written to BigQuery in the selected period.",
+      "title": "Governance Events Classified",
+      "description": "Total curated governance events in the selected time range.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
-        "x": 9,
-        "y": 3
+        "w": 6,
+        "x": 12,
+        "y": 4
       },
       "fieldConfig": {
         "defaults": {
@@ -322,12 +263,15 @@
               }
             ]
           },
-          "unit": "short",
-          "decimals": 0
+          "unit": "short"
         },
         "overrides": []
       },
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
         "reduceOptions": {
           "values": false,
           "calcs": [
@@ -335,15 +279,9 @@
           ],
           "fields": ""
         },
-        "orientation": "auto",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false,
+        "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -353,7 +291,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(SUM(events_inserted), 0) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -362,17 +300,17 @@
     {
       "id": 6,
       "type": "stat",
-      "title": "p95 processing duration",
-      "description": "Latest available p95 file-processing duration. Current source precision is whole seconds.",
+      "title": "Repositories With Governance Changes",
+      "description": "Distinct repositories affected by governance events.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
       },
       "gridPos": {
         "h": 5,
-        "w": 3,
-        "x": 12,
-        "y": 3
+        "w": 6,
+        "x": 18,
+        "y": 4
       },
       "fieldConfig": {
         "defaults": {
@@ -389,12 +327,15 @@
               }
             ]
           },
-          "unit": "ms",
-          "decimals": 0
+          "unit": "short"
         },
         "overrides": []
       },
       "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
         "reduceOptions": {
           "values": false,
           "calcs": [
@@ -402,15 +343,9 @@
           ],
           "fields": ""
         },
-        "orientation": "auto",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false,
+        "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -420,7 +355,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(MAX(p95_processing_duration_seconds) * 1000, 0) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.v_github_audit_pipeline_health_15m`\n            WHERE $__timeFilter(minute)",
+          "rawSql": "SELECT COUNT(DISTINCT repository) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND repository IS NOT NULL",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -428,98 +363,64 @@
     },
     {
       "id": 7,
-      "type": "stat",
-      "title": "Failed files",
-      "description": "Failed audit-file processing runs. Excludes _check/ marker objects.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
+      "type": "row",
+      "title": "Governance posture",
+      "collapsed": false,
       "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 15,
-        "y": 3
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 5
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "orientation": "auto",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false,
-        "wideLayout": true
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 1,
-          "rawQuery": true,
-          "rawSql": "SELECT COUNTIF(processing_status = 'FAILED') AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ]
+      "panels": []
     },
     {
       "id": 8,
-      "type": "stat",
-      "title": "Parse failures",
-      "description": "Malformed or unparseable audit records. Excludes _check/ marker objects.",
+      "type": "barchart",
+      "title": "Governance Events by Review Priority",
+      "description": null,
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
       },
       "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 18,
-        "y": 3
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 10
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -528,39 +429,32 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 10
               }
             ]
-          },
-          "unit": "short",
-          "decimals": 0
+          }
         },
         "overrides": []
       },
       "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
+        "barRadius": 0,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
         "orientation": "auto",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false,
-        "wideLayout": true
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
-      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -570,7 +464,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(SUM(parse_failures), 0) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
+          "rawSql": "SELECT\n  review_priority,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nGROUP BY review_priority\nORDER BY CASE review_priority\n  WHEN 'HIGH' THEN 1\n  WHEN 'MEDIUM' THEN 2\n  WHEN 'LOW' THEN 3\n  ELSE 4\nEND",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -578,23 +472,51 @@
     },
     {
       "id": 9,
-      "type": "stat",
-      "title": "Duplicates skipped",
-      "description": "Duplicates removed within source files. Expected for at-least-once delivery.",
+      "type": "barchart",
+      "title": "Governance Events by Area",
+      "description": null,
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
       },
       "gridPos": {
-        "h": 5,
-        "w": 3,
-        "x": 21,
-        "y": 3
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 10
       },
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
@@ -605,29 +527,30 @@
                 "value": null
               }
             ]
-          },
-          "unit": "short",
-          "decimals": 0
+          }
         },
         "overrides": []
       },
       "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
+        "barRadius": 0,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
         "orientation": "auto",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "showPercentChange": false,
-        "wideLayout": true
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
-      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -637,7 +560,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(SUM(duplicates_skipped), 0) AS value\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')",
+          "rawSql": "SELECT\n  governance_area,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nGROUP BY governance_area\nORDER BY events DESC",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -646,392 +569,8 @@
     {
       "id": 10,
       "type": "timeseries",
-      "title": "Events inserted over time",
-      "description": "Normalized audit-event throughput written to BigQuery.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 12,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0,
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 0,
-          "rawQuery": true,
-          "rawSql": "SELECT\n              $__timeGroup(minute, $__interval) AS time,\n              SUM(events_inserted) AS events_inserted\n            FROM `db-dev-l4to-mp-github.github_governance.v_github_audit_pipeline_health_15m`\n            WHERE $__timeFilter(minute)\n            GROUP BY time\n            ORDER BY time",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ]
-    },
-    {
-      "id": 11,
-      "type": "timeseries",
-      "title": "Files processed over time",
-      "description": "Real audit-file processing throughput.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 12,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0,
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 0,
-          "rawQuery": true,
-          "rawSql": "SELECT\n              $__timeGroup(minute, $__interval) AS time,\n              SUM(files_processed) AS files_processed\n            FROM `db-dev-l4to-mp-github.github_governance.v_github_audit_pipeline_health_15m`\n            WHERE $__timeFilter(minute)\n            GROUP BY time\n            ORDER BY time",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ]
-    },
-    {
-      "id": 12,
-      "type": "timeseries",
-      "title": "Pipeline failures over time",
-      "description": "Failure, partial-failure, and parse-failure trend. Excludes _check/ marker objects.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 0,
-        "y": 17
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 12,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0,
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 0,
-          "rawQuery": true,
-          "rawSql": "SELECT\n              $__timeGroup(started_at, $__interval) AS time,\n              COUNTIF(processing_status = 'FAILED') AS failed_files,\n              COUNTIF(processing_status = 'PARTIAL_FAILURE') AS partial_failure_files,\n              SUM(parse_failures) AS parse_failures\n            FROM `db-dev-l4to-mp-github.github_governance.github_audit_pipeline_health`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')\n            GROUP BY time\n            ORDER BY time",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ]
-    },
-    {
-      "id": 13,
-      "type": "timeseries",
-      "title": "Duplicates skipped over time",
-      "description": "Expected at-least-once delivery behavior tracked over time.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
-      "gridPos": {
-        "h": 9,
-        "w": 12,
-        "x": 12,
-        "y": 17
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 12,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 4,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0,
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "11.6.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 0,
-          "rawQuery": true,
-          "rawSql": "SELECT\n              $__timeGroup(minute, $__interval) AS time,\n              SUM(duplicates_skipped) AS duplicates_skipped\n            FROM `db-dev-l4to-mp-github.github_governance.v_github_audit_pipeline_health_15m`\n            WHERE $__timeFilter(minute)\n            GROUP BY time\n            ORDER BY time",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ]
-    },
-    {
-      "id": 14,
-      "type": "timeseries",
-      "title": "Source event lag \u2014 historical backfill included",
-      "description": "Lag from source event time to processing completion. Historical backfill can increase this temporarily.",
+      "title": "Governance Event Trend",
+      "description": "Daily volume of classified governance events by review priority.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -1040,7 +579,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 18
       },
       "fieldConfig": {
         "defaults": {
@@ -1054,8 +593,8 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 12,
-            "gradientMode": "none",
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -1063,7 +602,7 @@
             },
             "insertNulls": false,
             "lineInterpolation": "linear",
-            "lineWidth": 2,
+            "lineWidth": 1,
             "pointSize": 4,
             "scaleDistribution": {
               "type": "linear"
@@ -1087,10 +626,7 @@
                 "value": null
               }
             ]
-          },
-          "unit": "s",
-          "decimals": 0,
-          "min": 0
+          }
         },
         "overrides": []
       },
@@ -1102,12 +638,10 @@
           "showLegend": true
         },
         "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1115,19 +649,32 @@
             "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
           },
           "editorMode": "code",
-          "format": 0,
+          "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n              $__timeGroup(minute, $__interval) AS time,\n              MAX(avg_source_event_lag_seconds) AS source_event_lag_seconds\n            FROM `db-dev-l4to-mp-github.github_governance.v_github_audit_pipeline_health_15m`\n            WHERE $__timeFilter(minute)\n            GROUP BY time\n            ORDER BY time",
+          "rawSql": "SELECT\n  TIMESTAMP_TRUNC(event_time, DAY) AS time,\n  review_priority AS metric,\n  COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nGROUP BY time, metric\nORDER BY time",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
       ]
     },
     {
-      "id": 15,
+      "id": 11,
+      "type": "row",
+      "title": "Review queue and controls",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "panels": []
+    },
+    {
+      "id": 12,
       "type": "table",
-      "title": "Recent failed audit files",
-      "description": "Operational detail for non-successful audit-file processing runs. Excludes non-audit _check/ marker objects.",
+      "title": "High-Priority Review Queue",
+      "description": "Reviewable high-priority control and availability changes.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -1136,7 +683,7 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 27
       },
       "fieldConfig": {
         "defaults": {
@@ -1148,9 +695,7 @@
             "cellOptions": {
               "type": "auto"
             },
-            "filterable": true,
-            "inspect": false,
-            "minWidth": 80
+            "inspect": false
           },
           "mappings": [],
           "thresholds": {
@@ -1163,58 +708,21 @@
             ]
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "source_file"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 360
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "auto",
-                  "wrapText": true
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "error_message"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 520
-              },
-              {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "auto",
-                  "wrapText": true
-                }
-              }
-            ]
-          }
-        ]
+        "overrides": []
       },
       "options": {
         "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
         "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "started_at"
-          }
-        ]
+        "sortBy": []
       },
-      "pluginVersion": "11.6.0",
       "targets": [
         {
           "datasource": {
@@ -1224,33 +732,398 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n              started_at,\n              source_file,\n              processing_status,\n              events_seen,\n              events_inserted,\n              duplicates_skipped,\n              parse_failures,\n              processing_duration_seconds,\n              source_event_lag_seconds,\n              error_message\n            FROM `db-dev-l4to-mp-github.github_governance.v_github_audit_pipeline_failures`\n            WHERE $__timeFilter(started_at)\n              AND NOT STARTS_WITH(source_file, '_check/')\n            ORDER BY started_at DESC\n            LIMIT 100",
+          "rawSql": "SELECT\n  event_time,\n  governance_event_type,\n  governance_area,\n  action,\n  actor AS initiated_by,\n  affected_identity,\n  org,\n  repository,\n  review_reason\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority = 'HIGH'\nORDER BY event_time DESC\nLIMIT 100",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Branch and Merge-Control Changes",
+      "description": null,
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  TIMESTAMP_TRUNC(event_time, DAY) AS time,\n  governance_event_type AS metric,\n  COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\nGROUP BY time, metric\nORDER BY time",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "table",
+      "title": "Critical Technical Account Lifecycle Events",
+      "description": "Historical and current lifecycle events affecting runner-related critical technical identities.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  event_time,\n  governance_event_type,\n  review_priority,\n  actor AS initiated_by,\n  affected_identity,\n  review_reason\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_area = 'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\nORDER BY event_time DESC\nLIMIT 100",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "type": "barchart",
+      "title": "Top Affected Organizations",
+      "description": null,
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 46
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  COALESCE(org, 'Enterprise / not applicable') AS organization,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nGROUP BY organization\nORDER BY events DESC\nLIMIT 10",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "type": "barchart",
+      "title": "Top Affected Repositories",
+      "description": null,
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 46
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  repository,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND repository IS NOT NULL\nGROUP BY repository\nORDER BY events DESC\nLIMIT 10",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
       ]
     }
   ],
-  "refresh": "5m",
-  "schemaVersion": 41,
+  "refresh": "15m",
+  "schemaVersion": 39,
   "tags": [
     "github",
     "governance",
-    "audit-logs",
-    "pipeline-health",
+    "audit",
     "bigquery"
   ],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-24h",
+    "from": "now-180d",
     "to": "now"
   },
-  "timepicker": {},
-  "timezone": "utc",
-  "title": "GitHub Governance \u2014 Audit Pipeline Health",
-  "uid": "github-governance-pipeline-health",
-  "version": 3,
+  "timepicker": {
+    "refresh_intervals": [
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "time_options": [
+      "6h",
+      "24h",
+      "7d",
+      "30d",
+      "90d",
+      "180d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "GitHub Governance Overview",
+  "uid": "github-governance-overview",
+  "version": 1,
   "weekStart": ""
 }
