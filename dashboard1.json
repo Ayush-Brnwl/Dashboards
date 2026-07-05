@@ -1,35 +1,25 @@
 SELECT
   governance_event_type,
   action,
-  COUNT(*) AS high_priority_events,
-  COUNT(DISTINCT org) AS affected_organizations,
-  COUNT(DISTINCT repository) AS affected_repositories,
-  COUNT(DISTINCT actor) AS initiating_identities,
+  actor AS initiated_by,
+  org,
+  repository,
+  COUNT(*) AS events,
   MIN(event_time) AS first_seen,
-  MAX(event_time) AS last_seen
+  MAX(event_time) AS last_seen,
+  ARRAY_AGG(DISTINCT review_reason IGNORE NULLS LIMIT 5) AS sample_reasons
 FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
 WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
   AND review_priority = 'HIGH'
-GROUP BY
-  governance_event_type,
-  action
-ORDER BY high_priority_events DESC;
-
-SELECT
-  governance_event_type,
-  action,
-  COALESCE(actor, 'UNKNOWN') AS initiated_by,
-  COUNT(*) AS high_priority_events,
-  COUNT(DISTINCT repository) AS affected_repositories,
-  MIN(event_time) AS first_seen,
-  MAX(event_time) AS last_seen
-FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
-WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
-  AND review_priority = 'HIGH'
+  AND actor IN (
+    'ghemu-landing-zone-factory[bot]',
+    'cem401-CPTCLDEG-gh-g_dbk'
+  )
 GROUP BY
   governance_event_type,
   action,
-  initiated_by
-ORDER BY high_priority_events DESC
-LIMIT 30;
-
+  initiated_by,
+  org,
+  repository
+ORDER BY events DESC
+LIMIT 100;
