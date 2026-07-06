@@ -1,4 +1,4 @@
-WITH organization_options AS (
+WITH repository_options AS (
   SELECT
     'ALL' AS __text,
     'ALL' AS __value,
@@ -7,20 +7,73 @@ WITH organization_options AS (
   UNION ALL
 
   SELECT DISTINCT
-    TRIM(REGEXP_REPLACE(org_token, r'[\[\]"]', '')) AS __text,
-    TRIM(REGEXP_REPLACE(org_token, r'[\[\]"]', '')) AS __value,
+    TRIM(REGEXP_REPLACE(repository_token, r'[\[\]"]', '')) AS __text,
+    TRIM(REGEXP_REPLACE(repository_token, r'[\[\]"]', '')) AS __value,
     1 AS sort_order
   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
-  CROSS JOIN UNNEST(SPLIT(COALESCE(org, ''), ',')) AS org_token
+  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token
   WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
-    AND TRIM(REGEXP_REPLACE(org_token, r'[\[\]"]', '')) != ''
+    AND TRIM(REGEXP_REPLACE(repository_token, r'[\[\]"]', '')) != ''
+
+    AND (
+      '$organization' = 'ALL'
+      OR EXISTS (
+        SELECT 1
+        FROM UNNEST(SPLIT(COALESCE(org, ''), ',')) AS org_token
+        WHERE TRIM(REGEXP_REPLACE(org_token, r'[\[\]"]', '')) = '$organization'
+      )
+    )
 )
 
 SELECT
   __text,
   __value
-FROM organization_options
+FROM repository_options
 ORDER BY
   sort_order,
   __text
-LIMIT 5000;
+LIMIT 10000;
+
+WITH actor_options AS (
+  SELECT
+    'ALL' AS __text,
+    'ALL' AS __value,
+    0 AS sort_order
+
+  UNION ALL
+
+  SELECT DISTINCT
+    actor AS __text,
+    actor AS __value,
+    1 AS sort_order
+  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
+  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
+    AND actor IS NOT NULL
+
+    AND (
+      '$organization' = 'ALL'
+      OR EXISTS (
+        SELECT 1
+        FROM UNNEST(SPLIT(COALESCE(org, ''), ',')) AS org_token
+        WHERE TRIM(REGEXP_REPLACE(org_token, r'[\[\]"]', '')) = '$organization'
+      )
+    )
+
+    AND (
+      '$repository' = 'ALL'
+      OR EXISTS (
+        SELECT 1
+        FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token
+        WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\[\]"]', '')) = '$repository'
+      )
+    )
+)
+
+SELECT
+  __text,
+  __value
+FROM actor_options
+ORDER BY
+  sort_order,
+  __text
+LIMIT 10000;
