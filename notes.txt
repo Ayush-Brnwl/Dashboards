@@ -1,227 +1,81 @@
-WITH active_high_critical_identities AS (
-  SELECT
-    LOWER(identity_login) AS identity_login,
-    identity_user_id,
-    dependency,
-    owner_team
-  FROM `db-dev-l4to-mp-github.github_governance.github_governance_critical_identities`
-  WHERE is_active = TRUE
-    AND criticality = 'HIGH'
-),
-
-matched_events AS (
-  SELECT
-    e.event_key,
-    e.event_time,
-    e.action,
-    e.actor AS initiated_by,
-    e.user AS affected_identity,
-    NULLIF(e.user_id, 0) AS affected_identity_user_id,
-    c.identity_login AS matched_critical_identity,
-    c.dependency,
-    c.owner_team
-  FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized` e
-  JOIN active_high_critical_identities c
-    ON LOWER(COALESCE(e.user, '')) = c.identity_login
-    OR (
-      NULLIF(e.user_id, 0) IS NOT NULL
-      AND c.identity_user_id IS NOT NULL
-      AND NULLIF(e.user_id, 0) = c.identity_user_id
-    )
-  WHERE e.event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
-    AND e.action IN ('user.suspend', 'user.unsuspend')
-)
-
-SELECT
-  action,
-  COUNT(*) AS events,
-  COUNT(DISTINCT matched_critical_identity) AS affected_runner_accounts,
-  MIN(event_time) AS oldest_event,
-  MAX(event_time) AS newest_event
-FROM matched_events
-GROUP BY action
-ORDER BY action;
-
-
-DECLARE backfill_start TIMESTAMP DEFAULT TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY);
-DECLARE backfill_end TIMESTAMP DEFAULT CURRENT_TIMESTAMP();
-DECLARE rule_version STRING DEFAULT 'v1.0.0';
-
-MERGE `db-dev-l4to-mp-github.github_governance.github_governance_events` AS target
+MERGE `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions` AS target
 USING (
-  WITH active_high_critical_identities AS (
-    SELECT
-      LOWER(identity_login) AS identity_login,
-      identity_user_id,
-      dependency
-    FROM `db-dev-l4to-mp-github.github_governance.github_governance_critical_identities`
-    WHERE is_active = TRUE
-      AND criticality = 'HIGH'
-  ),
+  SELECT
+    'APPROVED_LZ_FACTORY_BRANCH_POLICY_OVERRIDE' AS exception_id,
+    'ghemu-landing-zone-factory[bot]' AS actor,
+    'protected_branch.policy_override' AS action,
+    'PROTECTED_BRANCH_POLICY_OVERRIDE' AS governance_event_type,
+    'MEDIUM' AS priority_override,
+    'Approved Cloud Platform landing-zone automation applying standard branch protection during app-repo provisioning.' AS reason,
+    'Cloud Platform' AS owner_team,
+    TRUE AS is_active
 
-  matched_events AS (
-    SELECT
-      e.event_key,
-      e.event_time,
-      e.ingested_at,
-      e.org,
-      e.repository,
-      e.actor,
-      e.action,
-      e.user AS affected_identity,
-      NULLIF(e.user_id, 0) AS affected_identity_user_id,
-      e.source_file,
-      c.identity_login AS matched_critical_identity,
-      c.dependency
-    FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized` e
-    JOIN active_high_critical_identities c
-      ON LOWER(COALESCE(e.user, '')) = c.identity_login
-      OR (
-        NULLIF(e.user_id, 0) IS NOT NULL
-        AND c.identity_user_id IS NOT NULL
-        AND NULLIF(e.user_id, 0) = c.identity_user_id
-      )
-    WHERE e.event_time >= backfill_start
-      AND e.event_time < backfill_end
-      AND e.action IN ('user.suspend', 'user.unsuspend')
-
-    QUALIFY ROW_NUMBER() OVER (
-      PARTITION BY e.event_key
-      ORDER BY e.ingested_at DESC, e.source_file DESC, c.identity_login
-    ) = 1
-  )
+  UNION ALL
 
   SELECT
-    TO_HEX(SHA256(event_key)) AS governance_event_id,
-    event_key,
-    event_time,
-    ingested_at,
-    CURRENT_TIMESTAMP() AS classified_at,
+    'APPROVED_LZ_FACTORY_MERGE_SETTING_CHANGE',
+    'ghemu-landing-zone-factory[bot]',
+    'repo.change_merge_setting',
+    'MERGE_SETTING_CHANGE',
+    'MEDIUM',
+    'Approved Cloud Platform landing-zone automation applying standard merge configuration during app-repo provisioning.',
+    'Cloud Platform',
+    TRUE
 
-    org,
-    repository,
-    actor,
-    affected_identity,
-    affected_identity_user_id,
+  UNION ALL
 
-    action,
-    'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY' AS governance_area,
+  SELECT
+    'APPROVED_PLATFORM_MERGE_SETTING_CHANGE',
+    'cem401-CPTCLDEG-gh-g_dbk',
+    'repo.change_merge_setting',
+    'MERGE_SETTING_CHANGE',
+    'MEDIUM',
+    'Approved Cloud Platform automation applying standard merge configuration through the app-repo plugin.',
+    'Cloud Platform',
+    TRUE
 
-    CASE
-      WHEN action = 'user.suspend'
-        THEN 'CRITICAL_TECHNICAL_ACCOUNT_SUSPENDED'
-      WHEN action = 'user.unsuspend'
-        THEN 'CRITICAL_TECHNICAL_ACCOUNT_RESTORED'
-    END AS governance_event_type,
+  UNION ALL
 
-    CASE
-      WHEN action = 'user.suspend' THEN 'HIGH'
-      WHEN action = 'user.unsuspend' THEN 'LOW'
-    END AS review_priority,
-
-    CASE
-      WHEN action = 'user.suspend' THEN CONCAT(
-        'Active critical technical account was suspended. Dependency: ',
-        COALESCE(dependency, 'UNSPECIFIED'),
-        '.'
-      )
-      WHEN action = 'user.unsuspend' THEN CONCAT(
-        'Active critical technical account was restored. Dependency: ',
-        COALESCE(dependency, 'UNSPECIFIED'),
-        '.'
-      )
-    END AS review_reason,
-
-    CASE
-      WHEN action = 'user.suspend'
-        THEN 'CRITICAL_TECHNICAL_ACCOUNT_SUSPENDED'
-      WHEN action = 'user.unsuspend'
-        THEN 'CRITICAL_TECHNICAL_ACCOUNT_RESTORED'
-    END AS rule_id,
-
-    rule_version,
-    source_file
-  FROM matched_events
+  SELECT
+    'APPROVED_PLATFORM_BRANCH_POLICY_OVERRIDE',
+    'cem401-CPTCLDEG-gh-g_dbk',
+    'protected_branch.policy_override',
+    'PROTECTED_BRANCH_POLICY_OVERRIDE',
+    'MEDIUM',
+    'Approved Cloud Platform automation applying standard branch protection through the app-repo plugin.',
+    'Cloud Platform',
+    TRUE
 ) AS source
-ON target.governance_event_id = source.governance_event_id
-  AND target.event_time >= backfill_start
+ON target.exception_id = source.exception_id
 
 WHEN MATCHED THEN
   UPDATE SET
-    classified_at = source.classified_at,
-    affected_identity = source.affected_identity,
-    affected_identity_user_id = source.affected_identity_user_id,
-    governance_area = source.governance_area,
+    actor                 = source.actor,
+    action                = source.action,
     governance_event_type = source.governance_event_type,
-    review_priority = source.review_priority,
-    review_reason = source.review_reason,
-    rule_id = source.rule_id,
-    rule_version = source.rule_version
+    priority_override     = source.priority_override,
+    reason                = source.reason,
+    owner_team            = source.owner_team,
+    is_active             = source.is_active
 
 WHEN NOT MATCHED THEN
   INSERT (
-    governance_event_id,
-    event_key,
-    event_time,
-    ingested_at,
-    classified_at,
-    org,
-    repository,
+    exception_id,
     actor,
-    affected_identity,
-    affected_identity_user_id,
     action,
-    governance_area,
     governance_event_type,
-    review_priority,
-    review_reason,
-    rule_id,
-    rule_version,
-    source_file
+    priority_override,
+    reason,
+    owner_team,
+    is_active
   )
   VALUES (
-    source.governance_event_id,
-    source.event_key,
-    source.event_time,
-    source.ingested_at,
-    source.classified_at,
-    source.org,
-    source.repository,
+    source.exception_id,
     source.actor,
-    source.affected_identity,
-    source.affected_identity_user_id,
     source.action,
-    source.governance_area,
     source.governance_event_type,
-    source.review_priority,
-    source.review_reason,
-    source.rule_id,
-    source.rule_version,
-    source.source_file
+    source.priority_override,
+    source.reason,
+    source.owner_team,
+    source.is_active
   );
-
-
-SELECT
-  governance_area,
-  governance_event_type,
-  review_priority,
-  COUNT(*) AS events,
-  COUNT(DISTINCT affected_identity_user_id) AS affected_accounts,
-  MIN(event_time) AS oldest_event,
-  MAX(event_time) AS newest_event
-FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
-WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
-  AND governance_area = 'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'
-GROUP BY
-  governance_area,
-  governance_event_type,
-  review_priority
-ORDER BY newest_event DESC;
-
-
-SELECT
-  COUNT(*) AS total_rows,
-  COUNT(DISTINCT governance_event_id) AS distinct_governance_event_ids,
-  COUNT(*) - COUNT(DISTINCT governance_event_id) AS duplicate_rows
-FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
-WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY);
