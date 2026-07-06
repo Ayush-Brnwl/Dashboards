@@ -1,5 +1,21 @@
-SELECT DISTINCT org
-FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized`
-WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
-  AND LOWER(org) LIKE '%bzrk%'
-ORDER BY org;
+WITH org_tokens AS (
+  SELECT DISTINCT
+    TRIM(
+      REGEXP_REPLACE(
+        org_token,
+        r'[\[\]"]',
+        ''
+      )
+    ) AS org_value
+  FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized`
+  CROSS JOIN UNNEST(SPLIT(COALESCE(org, ''), ',')) AS org_token
+  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
+)
+
+SELECT
+  CONCAT('[', org_value, ']') AS exact_token,
+  LENGTH(org_value) AS token_length
+FROM org_tokens
+WHERE LOWER(org_value) LIKE '%bzrk%'
+ORDER BY org_value;
+
