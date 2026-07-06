@@ -68,7 +68,7 @@
   "annotations": {
     "list": []
   },
-  "description": "Repository and organization drilldown over curated GitHub Governance activity. Uses event history, not a current-state risk score.",
+  "description": "Repository and organization drilldown over curated GitHub Governance activity. Uses SQL-safe Grafana variable interpolation for BigQuery.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -162,7 +162,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) \n  AND ('${organization}' = '__all' OR org = '${organization}')\n  AND ('${repository}' = '__all' OR repository = '${repository}')\n  AND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\n  AND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\n  AND ('${actor}' = '__all' OR actor = '${actor}')",
+          "rawSql": "SELECT COUNT(*) AS value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) \n  AND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\n  AND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\n  AND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\n  AND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\n  AND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -226,7 +226,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND review_priority IN ('CRITICAL','HIGH') \n  AND ('${organization}' = '__all' OR org = '${organization}')\n  AND ('${repository}' = '__all' OR repository = '${repository}')\n  AND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\n  AND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\n  AND ('${actor}' = '__all' OR actor = '${actor}')",
+          "rawSql": "SELECT COUNT(*) AS value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND review_priority IN ('CRITICAL','HIGH') \n  AND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\n  AND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\n  AND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\n  AND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\n  AND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -290,7 +290,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(DISTINCT actor) AS value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND actor IS NOT NULL \n  AND ('${organization}' = '__all' OR org = '${organization}')\n  AND ('${repository}' = '__all' OR repository = '${repository}')\n  AND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\n  AND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\n  AND ('${actor}' = '__all' OR actor = '${actor}')",
+          "rawSql": "SELECT COUNT(DISTINCT actor) AS value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND actor IS NOT NULL \n  AND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\n  AND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\n  AND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\n  AND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\n  AND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -354,7 +354,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND governance_area IN ('BRANCH_AND_MERGE_CONTROLS','ADVANCED_SECURITY_POSTURE') \n  AND ('${organization}' = '__all' OR org = '${organization}')\n  AND ('${repository}' = '__all' OR repository = '${repository}')\n  AND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\n  AND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\n  AND ('${actor}' = '__all' OR actor = '${actor}')",
+          "rawSql": "SELECT COUNT(*) AS value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND governance_area IN ('BRANCH_AND_MERGE_CONTROLS','ADVANCED_SECURITY_POSTURE') \n  AND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\n  AND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\n  AND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\n  AND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\n  AND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -459,7 +459,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT TIMESTAMP_TRUNC(event_time, DAY) AS time, governance_area AS metric, COUNT(*) AS value\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time) \nAND ('${organization}' = '__all' OR org = '${organization}')\nAND ('${repository}' = '__all' OR repository = '${repository}')\nAND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\nAND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\nAND ('${actor}' = '__all' OR actor = '${actor}')\n\n   GROUP BY time, metric ORDER BY time",
+          "rawSql": "SELECT TIMESTAMP_TRUNC(event_time, DAY) AS time, governance_area AS metric, COUNT(*) AS value\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time) \nAND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\nAND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\nAND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\nAND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\nAND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})\n\n   GROUP BY time, metric ORDER BY time",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -630,7 +630,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n     COUNTIF(governance_area='BRANCH_AND_MERGE_CONTROLS') AS BRANCH_AND_MERGE_CONTROLS,\n     COUNTIF(governance_area='ACCESS_GOVERNANCE') AS ACCESS_GOVERNANCE,\n     COUNTIF(governance_area='OAUTH_ACCESS_GOVERNANCE') AS OAUTH_ACCESS_GOVERNANCE,\n     COUNTIF(governance_area='IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY') AS IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY,\n     COUNTIF(governance_area='ADVANCED_SECURITY_POSTURE') AS ADVANCED_SECURITY_POSTURE\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) \nAND ('${organization}' = '__all' OR org = '${organization}')\nAND ('${repository}' = '__all' OR repository = '${repository}')\nAND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\nAND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\nAND ('${actor}' = '__all' OR actor = '${actor}')",
+          "rawSql": "SELECT\n     COUNTIF(governance_area='BRANCH_AND_MERGE_CONTROLS') AS BRANCH_AND_MERGE_CONTROLS,\n     COUNTIF(governance_area='ACCESS_GOVERNANCE') AS ACCESS_GOVERNANCE,\n     COUNTIF(governance_area='OAUTH_ACCESS_GOVERNANCE') AS OAUTH_ACCESS_GOVERNANCE,\n     COUNTIF(governance_area='IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY') AS IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY,\n     COUNTIF(governance_area='ADVANCED_SECURITY_POSTURE') AS ADVANCED_SECURITY_POSTURE\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) \nAND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\nAND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\nAND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\nAND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\nAND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -787,7 +787,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNTIF(review_priority='CRITICAL') AS CRITICAL,\n          COUNTIF(review_priority='HIGH') AS HIGH,\n          COUNTIF(review_priority='MEDIUM') AS MEDIUM,\n          COUNTIF(review_priority='LOW') AS LOW\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) \nAND ('${organization}' = '__all' OR org = '${organization}')\nAND ('${repository}' = '__all' OR repository = '${repository}')\nAND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\nAND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\nAND ('${actor}' = '__all' OR actor = '${actor}')",
+          "rawSql": "SELECT COUNTIF(review_priority='CRITICAL') AS CRITICAL,\n          COUNTIF(review_priority='HIGH') AS HIGH,\n          COUNTIF(review_priority='MEDIUM') AS MEDIUM,\n          COUNTIF(review_priority='LOW') AS LOW\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) \nAND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\nAND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\nAND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\nAND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\nAND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -883,7 +883,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(actor,'UNKNOWN') AS actor, COUNT(*) AS events\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND actor IS NOT NULL \nAND ('${organization}' = '__all' OR org = '${organization}')\nAND ('${repository}' = '__all' OR repository = '${repository}')\nAND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\nAND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\nAND ('${actor}' = '__all' OR actor = '${actor}')\n\n   GROUP BY actor ORDER BY events DESC LIMIT 10",
+          "rawSql": "SELECT COALESCE(actor,'UNKNOWN') AS actor, COUNT(*) AS events\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND actor IS NOT NULL \nAND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\nAND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\nAND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\nAND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\nAND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})\n\n   GROUP BY actor ORDER BY events DESC LIMIT 10",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -975,7 +975,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT TIMESTAMP_TRUNC(event_time, DAY) AS time, governance_event_type AS metric, COUNT(*) AS value\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time) AND governance_area='BRANCH_AND_MERGE_CONTROLS' \nAND ('${organization}' = '__all' OR org = '${organization}')\nAND ('${repository}' = '__all' OR repository = '${repository}')\nAND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\nAND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\nAND ('${actor}' = '__all' OR actor = '${actor}')\n\n   GROUP BY time, metric ORDER BY time",
+          "rawSql": "SELECT TIMESTAMP_TRUNC(event_time, DAY) AS time, governance_event_type AS metric, COUNT(*) AS value\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time) AND governance_area='BRANCH_AND_MERGE_CONTROLS' \nAND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\nAND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\nAND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\nAND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\nAND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})\n\n   GROUP BY time, metric ORDER BY time",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -1093,7 +1093,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT event_time, governance_event_type, review_priority, governance_area, action,\n          actor AS initiated_by, affected_identity, org, repository, review_reason\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time) AND review_priority IN ('CRITICAL','HIGH') \nAND ('${organization}' = '__all' OR org = '${organization}')\nAND ('${repository}' = '__all' OR repository = '${repository}')\nAND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\nAND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\nAND ('${actor}' = '__all' OR actor = '${actor}')\n\n   ORDER BY CASE review_priority WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2 ELSE 3 END, event_time DESC\n   LIMIT 100",
+          "rawSql": "SELECT event_time, governance_event_type, review_priority, governance_area, action,\n          actor AS initiated_by, affected_identity, org, repository, review_reason\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time) AND review_priority IN ('CRITICAL','HIGH') \nAND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\nAND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\nAND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\nAND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\nAND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})\n\n   ORDER BY CASE review_priority WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2 ELSE 3 END, event_time DESC\n   LIMIT 100",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -1199,7 +1199,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT event_time, governance_event_type, review_priority, governance_area, action,\n          actor AS initiated_by, affected_identity, org, repository, review_reason\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time) \nAND ('${organization}' = '__all' OR org = '${organization}')\nAND ('${repository}' = '__all' OR repository = '${repository}')\nAND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\nAND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\nAND ('${actor}' = '__all' OR actor = '${actor}')\n\n   ORDER BY event_time DESC LIMIT 100",
+          "rawSql": "SELECT event_time, governance_event_type, review_priority, governance_area, action,\n          actor AS initiated_by, affected_identity, org, repository, review_reason\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time) \nAND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\nAND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\nAND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\nAND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\nAND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})\n\n   ORDER BY event_time DESC LIMIT 100",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -1292,7 +1292,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT event_time, governance_event_type, review_priority, action, actor AS initiated_by,\n          org, repository, review_reason\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time)\n     AND governance_area IN ('BRANCH_AND_MERGE_CONTROLS','ADVANCED_SECURITY_POSTURE') \nAND ('${organization}' = '__all' OR org = '${organization}')\nAND ('${repository}' = '__all' OR repository = '${repository}')\nAND ('${governance_area}' = '__all' OR governance_area = '${governance_area}')\nAND ('${review_priority}' = '__all' OR review_priority = '${review_priority}')\nAND ('${actor}' = '__all' OR actor = '${actor}')\n\n   ORDER BY event_time DESC LIMIT 100",
+          "rawSql": "SELECT event_time, governance_event_type, review_priority, action, actor AS initiated_by,\n          org, repository, review_reason\n   FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n   WHERE $__timeFilter(event_time)\n     AND governance_area IN ('BRANCH_AND_MERGE_CONTROLS','ADVANCED_SECURITY_POSTURE') \nAND (${organization:sqlstring} = '__all' OR org = ${organization:sqlstring})\nAND (${repository:sqlstring} = '__all' OR repository = ${repository:sqlstring})\nAND (${governance_area:sqlstring} = '__all' OR governance_area = ${governance_area:sqlstring})\nAND (${review_priority:sqlstring} = '__all' OR review_priority = ${review_priority:sqlstring})\nAND (${actor:sqlstring} = '__all' OR actor = ${actor:sqlstring})\n\n   ORDER BY event_time DESC LIMIT 100",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -1341,7 +1341,7 @@
           "type": "grafana-bigquery-datasource",
           "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
         },
-        "query": "SELECT DISTINCT repository AS __text, repository AS __value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n  AND repository IS NOT NULL\n  AND ('${organization}'='__all' OR org='${organization}')\nORDER BY repository",
+        "query": "SELECT DISTINCT repository AS __text, repository AS __value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n  AND repository IS NOT NULL\n  AND (${organization:sqlstring}='__all' OR org=${organization:sqlstring})\nORDER BY repository",
         "definition": "Repository values constrained by selected organization",
         "includeAll": true,
         "allValue": "__all",
@@ -1410,7 +1410,7 @@
           "type": "grafana-bigquery-datasource",
           "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
         },
-        "query": "SELECT DISTINCT actor AS __text, actor AS __value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n  AND actor IS NOT NULL\n  AND ('${organization}'='__all' OR org='${organization}')\n  AND ('${repository}'='__all' OR repository='${repository}')\nORDER BY actor",
+        "query": "SELECT DISTINCT actor AS __text, actor AS __value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n  AND actor IS NOT NULL\n  AND (${organization:sqlstring}='__all' OR org=${organization:sqlstring})\n  AND (${repository:sqlstring}='__all' OR repository=${repository:sqlstring})\nORDER BY actor",
         "definition": "Actor values constrained by selected organization/repository",
         "includeAll": true,
         "allValue": "__all",
@@ -1449,7 +1449,7 @@
   },
   "timezone": "browser",
   "title": "Repository Governance Drilldown",
-  "uid": "github-repository-governance-drilldown",
+  "uid": "github-repository-governance-drilldown-v2",
   "version": 1,
   "weekStart": ""
 }
