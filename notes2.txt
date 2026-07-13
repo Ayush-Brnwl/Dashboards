@@ -1,4 +1,37 @@
-SELECT column_name
-FROM `db-dev-l4to-mp-github.github_governance.INFORMATION_SCHEMA.COLUMNS`
-WHERE table_name = 'github_audit_events_normalized'
-ORDER BY ordinal_position;
+WITH source_events AS (
+  SELECT
+    event_key,
+    event_time,
+    action,
+    category,
+
+    actor,
+    actor_id,
+
+    org,
+    org_id,
+
+    COALESCE(
+      NULLIF(repository, ''),
+      NULLIF(repo, '')
+    ) AS repository,
+
+    repository_id,
+    repository_public,
+
+    user,
+    user_id,
+
+    external_id,
+    external_identity_username,
+    programmatic_access_type,
+
+    raw_event_json
+
+  FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized`
+
+  WHERE event_time >= TIMESTAMP_SUB(
+    CURRENT_TIMESTAMP(),
+    INTERVAL 180 DAY
+  )
+),
