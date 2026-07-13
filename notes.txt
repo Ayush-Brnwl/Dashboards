@@ -1,6 +1,6 @@
 BEGIN TRANSACTION;
 
--- 1. Insert or update wildcard LOW-priority exceptions.
+-- 1. Insert/update wildcard LOW exceptions for approved automations.
 MERGE
   `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions` AS target
 USING (
@@ -20,6 +20,17 @@ USING (
     STRUCT(
       'APPROVED_PLATFORM_AUTOMATION_ALL_ACTIONS' AS exception_id,
       'cem401-CPTCLDEG-gh-g_dbk' AS actor,
+      '*' AS action,
+      CAST(NULL AS STRING) AS governance_event_type,
+      'LOW' AS priority_override,
+      'Approved Cloud Platform app-repo provisioning automation. Override non-critical governance events to LOW. CRITICAL security-control events remain CRITICAL through classifier precedence.' AS reason,
+      'Cloud Platform' AS owner_team,
+      TRUE AS is_active
+    ),
+
+    STRUCT(
+      'APPROVED_CEM402_AUTOMATION_ALL_ACTIONS' AS exception_id,
+      'cem402-CPTCLDEG-gh-g_dbk' AS actor,
       '*' AS action,
       CAST(NULL AS STRING) AS governance_event_type,
       'LOW' AS priority_override,
@@ -64,24 +75,42 @@ WHEN NOT MATCHED THEN
     source.is_active
   );
 
--- 2. Deactivate the older action-specific MEDIUM exceptions.
-UPDATE
+-- 2. Permanently remove the older action-specific MEDIUM exceptions.
+DELETE FROM
   `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions`
-SET
-  is_active = FALSE
 WHERE
   LOWER(actor) IN (
     'ghemu-landing-zone-factory[bot]',
-    'cem401-cptcldeg-gh-g_dbk'
+    'cem401-cptcldeg-gh-g_dbk',
+    'cem402-cptcldeg-gh-g_dbk'
   )
-  AND action IN (
-    'repo.change_merge_setting',
-    'protected_branch.policy_override'
-  )
-  AND priority_override = 'MEDIUM'
-  AND exception_id NOT IN (
-    'APPROVED_LZ_FACTORY_ALL_ACTIONS',
-    'APPROVED_PLATFORM_AUTOMATION_ALL_ACTIONS'
-  );
+  AND priority_override = 'MEDIUM';
 
 COMMIT TRANSACTION;
+
+
+
+
+
+
+
+SELECT
+  exception_id,
+  actor,
+  action,
+  governance_event_type,
+  priority_override,
+  reason,
+  owner_team,
+  is_active
+FROM
+  `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions`
+WHERE
+  LOWER(actor) IN (
+    'ghemu-landing-zone-factory[bot]',
+    'cem401-cptcldeg-gh-g_dbk',
+    'cem402-cptcldeg-gh-g_dbk'
+  )
+ORDER BY
+  actor,
+  action;
