@@ -35,3 +35,490 @@ WITH source_events AS (
     INTERVAL 180 DAY
   )
 ),
+
+classified_candidates AS (
+  SELECT
+    event_key,
+    event_time,
+    action,
+    category,
+
+    actor,
+    actor_id,
+
+    org,
+    org_id,
+
+    repository,
+    repository_id,
+    repository_public,
+
+    user,
+    user_id,
+
+    external_id,
+    external_identity_username,
+    programmatic_access_type,
+
+    raw_event_json,
+
+    CASE
+      /*
+       * Push protection and secret protection
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'push_protection'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed)'
+      )
+      THEN 'SECRET_PROTECTION_DISABLED'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'push_protection'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(bypass|bypass_list)'
+      )
+      THEN 'PUSH_PROTECTION_BYPASS_CONTROL_CHANGE'
+
+      /*
+       * GitHub Advanced Security
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'advanced_security'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled)'
+      )
+      THEN 'ADVANCED_SECURITY_DISABLED'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'advanced_security'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(policy|entity_policy|update|updated|change|changed)'
+      )
+      THEN 'ADVANCED_SECURITY_POLICY_CHANGE'
+
+      /*
+       * CodeQL
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'codeql'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed)'
+      )
+      THEN 'CODEQL_DISABLED'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'codeql'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(update|updated|configuration|config|change|changed)'
+      )
+      THEN 'CODEQL_CONFIGURATION_CHANGE'
+
+      /*
+       * Code scanning
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'code_scanning'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(delete|deleted|disable|disabled|remove|removed|dismissal|dismiss)'
+      )
+      THEN 'CODE_SCANNING_CONTROL_CHANGE'
+
+      /*
+       * Security configurations
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'security_configuration'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(remove|removed|delete|deleted|failed|failure)'
+      )
+      THEN 'SECURITY_CONFIGURATION_REMOVED_OR_FAILED'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'security_configuration'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(apply|applied|attach|attached)'
+      )
+      THEN 'SECURITY_CONFIGURATION_APPLIED'
+
+      /*
+       * Dependabot and security updates
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(dependabot|security_updates|security_update)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed)'
+      )
+      THEN 'DEPENDABOT_OR_SECURITY_UPDATES_DISABLED'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(dependabot|security_updates|security_update)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(enable|enabled|update|updated|change|changed)'
+      )
+      THEN 'DEPENDABOT_OR_SECURITY_UPDATES_CHANGED'
+
+      /*
+       * Identity guardrails
+       */
+      WHEN LOWER(COALESCE(action, '')) IN (
+        'org.disable_two_factor_requirement',
+        'org.disable_saml',
+        'business.disable_two_factor_requirement',
+        'business.disable_saml'
+      )
+      THEN 'IDENTITY_GUARDRAIL_DISABLED'
+
+      WHEN LOWER(COALESCE(action, '')) IN (
+        'org.enable_two_factor_requirement',
+        'org.enable_saml',
+        'business.enable_two_factor_requirement',
+        'business.enable_saml'
+      )
+      THEN 'IDENTITY_GUARDRAIL_ENABLED'
+
+      /*
+       * Repository exposure and visibility
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(repository|repo)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(visibility|public|private|internal)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(change|changed|update|updated|create|created)'
+      )
+      THEN 'REPOSITORY_EXPOSURE_CHANGE'
+
+      /*
+       * Repository access
+       */
+      WHEN LOWER(COALESCE(action, '')) IN (
+        'repo.add_member',
+        'repo.add_team',
+        'repository.add_member',
+        'repository.add_team'
+      )
+      THEN 'REPOSITORY_ACCESS_GRANTED'
+
+      WHEN LOWER(COALESCE(action, '')) IN (
+        'repo.remove_member',
+        'repo.remove_team',
+        'repository.remove_member',
+        'repository.remove_team'
+      )
+      THEN 'REPOSITORY_ACCESS_REMOVED'
+
+      /*
+       * Workflow, Actions and check controls
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(actions|workflow|checks|required_status_check)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed|delete|deleted|policy|auto_trigger)'
+      )
+      THEN 'WORKFLOW_OR_CHECK_CONTROL_CHANGE'
+
+      /*
+       * Audit stream and evidence controls
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(audit|audit_log|stream|streaming|retention)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|delete|deleted|remove|removed|update|updated|change|changed)'
+      )
+      THEN 'AUDIT_EVIDENCE_CONTROL_CHANGE'
+
+      /*
+       * Secret scanning
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'secret_scanning'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed|delete|deleted)'
+      )
+      THEN 'SECRET_SCANNING_DISABLED'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'secret_scanning'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(enable|enabled|update|updated|change|changed)'
+      )
+      THEN 'SECRET_SCANNING_CONFIGURATION_CHANGE'
+
+      ELSE NULL
+    END AS proposed_event_group,
+
+    CASE
+      /*
+       * Critical: mandatory security or identity controls disabled.
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'push_protection'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed)'
+      )
+      THEN 'CRITICAL'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'advanced_security'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled)'
+      )
+      THEN 'CRITICAL'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'codeql'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed)'
+      )
+      THEN 'CRITICAL'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'secret_scanning'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed|delete|deleted)'
+      )
+      THEN 'CRITICAL'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'security_configuration'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(remove|removed|delete|deleted)'
+      )
+      THEN 'CRITICAL'
+
+      WHEN LOWER(COALESCE(action, '')) IN (
+        'org.disable_two_factor_requirement',
+        'org.disable_saml',
+        'business.disable_two_factor_requirement',
+        'business.disable_saml'
+      )
+      THEN 'CRITICAL'
+
+      /*
+       * High: bypass, failure, workflow and audit-control weakening.
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'push_protection'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(bypass|bypass_list)'
+      )
+      THEN 'HIGH'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'code_scanning'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(delete|deleted|disable|disabled|remove|removed|dismissal|dismiss)'
+      )
+      THEN 'HIGH'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'security_configuration'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(failed|failure)'
+      )
+      THEN 'HIGH'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(dependabot|security_updates|security_update)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed)'
+      )
+      THEN 'HIGH'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(actions|workflow|checks|required_status_check)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|remove|removed|delete|deleted|policy|auto_trigger)'
+      )
+      THEN 'HIGH'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(audit|audit_log|stream|streaming|retention)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(disable|disabled|delete|deleted|remove|removed)'
+      )
+      THEN 'HIGH'
+
+      /*
+       * Low: strengthening, restoration, or configuration application.
+       */
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'security_configuration'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(apply|applied|attach|attached)'
+      )
+      THEN 'LOW'
+
+      WHEN LOWER(COALESCE(action, '')) IN (
+        'org.enable_two_factor_requirement',
+        'org.enable_saml',
+        'business.enable_two_factor_requirement',
+        'business.enable_saml'
+      )
+      THEN 'LOW'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(dependabot|security_updates|security_update)'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(enable|enabled)'
+      )
+      THEN 'LOW'
+
+      WHEN REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'secret_scanning'
+      )
+      AND REGEXP_CONTAINS(
+        LOWER(COALESCE(action, '')),
+        r'(enable|enabled)'
+      )
+      THEN 'LOW'
+
+      /*
+       * Everything else discovered by these rules starts as Medium.
+       */
+      ELSE 'MEDIUM'
+    END AS proposed_priority
+
+  FROM source_events
+)
+
+SELECT
+  proposed_event_group,
+  proposed_priority,
+  action,
+
+  COUNT(*) AS events,
+
+  COUNT(DISTINCT actor) AS distinct_actors,
+
+  COUNT(DISTINCT org) AS affected_org_values,
+
+  COUNT(DISTINCT repository) AS affected_repository_values,
+
+  ARRAY_AGG(
+    DISTINCT actor
+    IGNORE NULLS
+    ORDER BY actor
+    LIMIT 10
+  ) AS sample_actors,
+
+  ARRAY_AGG(
+    DISTINCT repository
+    IGNORE NULLS
+    ORDER BY repository
+    LIMIT 10
+  ) AS sample_repositories,
+
+  MIN(event_time) AS first_seen,
+  MAX(event_time) AS last_seen
+
+FROM classified_candidates
+
+WHERE proposed_event_group IS NOT NULL
+
+GROUP BY
+  proposed_event_group,
+  proposed_priority,
+  action
+
+ORDER BY
+  CASE proposed_priority
+    WHEN 'CRITICAL' THEN 1
+    WHEN 'HIGH' THEN 2
+    WHEN 'MEDIUM' THEN 3
+    WHEN 'LOW' THEN 4
+    ELSE 5
+  END,
+  events DESC,
+  action;
