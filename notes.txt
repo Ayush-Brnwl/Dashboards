@@ -1,7 +1,9 @@
 DECLARE classifier_version STRING DEFAULT 'v1.2.0';
 
+DECLARE backfill_end TIMESTAMP DEFAULT CURRENT_TIMESTAMP();
+
 DECLARE lookback_start TIMESTAMP DEFAULT
-  TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 6 HOUR);
+  TIMESTAMP_SUB(backfill_end, INTERVAL 180 DAY);
 
 
 MERGE
@@ -40,6 +42,7 @@ USING (
 
     WHERE
       event_time >= lookback_start
+      AND event_time < backfill_end
   ),
 
 
@@ -1118,6 +1121,7 @@ ON
   target.event_key = source.event_key
   AND target.rule_id = source.rule_id
   AND target.event_time >= lookback_start
+  AND target.event_time < backfill_end
 
 
 WHEN MATCHED THEN
