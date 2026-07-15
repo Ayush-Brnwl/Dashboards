@@ -1,25 +1,2091 @@
-SELECT
-  governance_event_type,
-  action,
-  actor AS initiated_by,
-  org,
-  repository,
-  COUNT(*) AS events,
-  MIN(event_time) AS first_seen,
-  MAX(event_time) AS last_seen,
-  ARRAY_AGG(DISTINCT review_reason IGNORE NULLS LIMIT 5) AS sample_reasons
-FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
-WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
-  AND review_priority = 'HIGH'
-  AND actor IN (
-    'ghemu-landing-zone-factory[bot]',
-    'cem401-CPTCLDEG-gh-g_dbk'
-  )
-GROUP BY
-  governance_event_type,
-  action,
-  initiated_by,
-  org,
-  repository
-ORDER BY events DESC
-LIMIT 100;
+{
+  "__inputs": [
+    {
+      "name": "DS_GITHUB_GOVERNANCE_BIGQUERY",
+      "label": "GitHub Governance BigQuery",
+      "description": "Select the configured Google BigQuery datasource that can read the github_governance dataset.",
+      "type": "datasource",
+      "pluginId": "grafana-bigquery-datasource",
+      "pluginName": "Google BigQuery"
+    }
+  ],
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "10.0.0"
+    },
+    {
+      "type": "datasource",
+      "id": "grafana-bigquery-datasource",
+      "name": "Google BigQuery",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "barchart",
+      "name": "Bar chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "bargauge",
+      "name": "Bar gauge",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "piechart",
+      "name": "Pie chart",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "table",
+      "name": "Table",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "timeseries",
+      "name": "Time series",
+      "version": ""
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Enterprise overview of curated GitHub governance events, review priorities, affected repositories, approved automation activity and critical security-control changes.",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "Governance Overview",
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### GitHub Governance Intelligence \u2014 Enterprise Overview\nCurated, deduplicated and rule-versioned governance events. Use this dashboard for governance review and investigation\u2014not as a security-incident console.  \n**Default scope:** last 30 days \u00b7 **Refresh:** 15 minutes \u00b7 **Event time:** source `event_time`. Approved Cloud Platform automations remain visible as **LOW** priority."
+      }
+    },
+    {
+      "id": 2,
+      "type": "row",
+      "title": "Executive summary",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 3
+      },
+      "panels": []
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Total Governance Events",
+      "description": "All curated governance events in the selected scope.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#5794F2",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "High / Critical Review Events",
+      "description": "Events requiring immediate or elevated governance review.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority IN ('CRITICAL', 'HIGH')\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Critical Security-Control Changes",
+      "description": "Critical weakening or removal of Advanced Security controls.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority = 'CRITICAL'\n  AND governance_area = 'ADVANCED_SECURITY_POSTURE'\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$actor' = 'ALL' OR actor = '$actor')",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Repositories Affected",
+      "description": "Distinct repositories with governance activity.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(DISTINCT\n  TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', ''))\n) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\nWHERE $__timeFilter(event_time)\n  AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')) != ''\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#73BF69",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Organizations Affected",
+      "description": "Distinct organizations derived from repository paths.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(DISTINCT\n  SPLIT(\n    TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n    '/'\n  )[SAFE_OFFSET(0)]\n) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\nWHERE $__timeFilter(event_time)\n  AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')), '/') > 0\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#B877D9",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Approved Automation Events",
+      "description": "Events matched by an active review exception, including approved provisioning bots.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events` AS governance_event\nWHERE $__timeFilter(governance_event.event_time)\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')\n  AND EXISTS (\n    SELECT 1\n    FROM `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions` AS exception\n    WHERE exception.is_active = TRUE\n      AND LOWER(exception.actor) = LOWER(COALESCE(governance_event.actor, ''))\n      AND (\n        exception.action = '*'\n        OR LOWER(exception.action) = LOWER(COALESCE(governance_event.action, ''))\n      )\n      AND (\n        exception.governance_event_type IS NULL\n        OR exception.governance_event_type = '*'\n        OR UPPER(exception.governance_event_type) =\n           UPPER(COALESCE(governance_event.governance_event_type, ''))\n      )\n  )",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#56A3A6",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "Governance activity",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "panels": []
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Governance Events Over Time by Review Priority",
+      "description": "Daily governance activity using source event time.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  TIMESTAMP_TRUNC(event_time, DAY) AS time,\n  review_priority AS metric,\n  COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')\nGROUP BY time, metric\nORDER BY time",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 82,
+            "gradientMode": "opacity",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 0,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CRITICAL"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HIGH"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF780A"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MEDIUM"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FFB357"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LOW"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "descending"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "piechart",
+      "title": "Governance Events by Area",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 12,
+        "y": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  COUNTIF(governance_area = 'BRANCH_AND_MERGE_CONTROLS') AS BRANCH_AND_MERGE_CONTROLS,\n  COUNTIF(governance_area = 'ACCESS_GOVERNANCE') AS ACCESS_GOVERNANCE,\n  COUNTIF(governance_area = 'OAUTH_ACCESS_GOVERNANCE') AS OAUTH_ACCESS_GOVERNANCE,\n  COUNTIF(governance_area = 'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY') AS IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY,\n  COUNTIF(governance_area = 'ADVANCED_SECURITY_POSTURE') AS ADVANCED_SECURITY_POSTURE,\n  COUNTIF(governance_area = 'REPOSITORY_SECURITY_POSTURE') AS REPOSITORY_SECURITY_POSTURE,\n  COUNTIF(governance_area = 'WORKFLOW_AND_AUTOMATION_GOVERNANCE') AS WORKFLOW_AND_AUTOMATION_GOVERNANCE,\n  COUNTIF(governance_area = 'AUDIT_AND_EVIDENCE_INTEGRITY') AS AUDIT_AND_EVIDENCE_INTEGRITY\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "BRANCH_AND_MERGE_CONTROLS"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Branch & merge controls"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#3274D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ACCESS_GOVERNANCE"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Access governance"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF9830"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "OAUTH_ACCESS_GOVERNANCE"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "OAuth access governance"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#B877D9"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Technical account availability"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#56A3A6"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ADVANCED_SECURITY_POSTURE"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Advanced Security posture"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "REPOSITORY_SECURITY_POSTURE"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Repository security posture"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#E0B400"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "WORKFLOW_AND_AUTOMATION_GOVERNANCE"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Workflow & automation governance"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8F3BB8"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "AUDIT_AND_EVIDENCE_INTEGRITY"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Audit & evidence integrity"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#8AB8FF"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "displayLabels": [
+          "name",
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
+        },
+        "pieType": "donut",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "descending"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "bargauge",
+      "title": "Review Priority Distribution",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 6,
+        "x": 18,
+        "y": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  COUNTIF(review_priority = 'CRITICAL') AS CRITICAL,\n  COUNTIF(review_priority = 'HIGH') AS HIGH,\n  COUNTIF(review_priority = 'MEDIUM') AS MEDIUM,\n  COUNTIF(review_priority = 'LOW') AS LOW\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short",
+          "min": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "CRITICAL"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Critical"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "HIGH"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "High"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FF780A"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MEDIUM"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Medium"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#FFB357"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "LOW"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Low"
+              },
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF69"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 12,
+        "minVizWidth": 0,
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      }
+    },
+    {
+      "id": 13,
+      "type": "barchart",
+      "title": "Top Governance Event Types",
+      "description": "Highest-volume curated governance event families.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  governance_event_type AS event_type,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')\nGROUP BY event_type\nORDER BY events DESC\nLIMIT 12",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 82,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barRadius": 4,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.72,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      }
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "Attention queue",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
+      "panels": []
+    },
+    {
+      "id": 15,
+      "type": "table",
+      "title": "High / Critical Governance Review Queue",
+      "description": "Final classifier priority after approved review exceptions are applied.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  event_time,\n  review_priority,\n  governance_event_type,\n  action,\n  actor AS initiated_by,\n  affected_identity,\n  SPLIT(repository, '/')[SAFE_OFFSET(0)] AS organization,\n  repository,\n  review_reason\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority IN ('CRITICAL', 'HIGH')\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')\nORDER BY\n  CASE review_priority\n    WHEN 'CRITICAL' THEN 1\n    WHEN 'HIGH' THEN 2\n    ELSE 3\n  END,\n  event_time DESC\nLIMIT 200",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "event_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 175
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_priority"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 100
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "CRITICAL": {
+                        "text": "CRITICAL",
+                        "color": "red"
+                      },
+                      "HIGH": {
+                        "text": "HIGH",
+                        "color": "orange"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "governance_event_type"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 285
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "repository"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_reason"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 500
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    },
+    {
+      "id": 16,
+      "type": "row",
+      "title": "Impact analysis",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 38
+      },
+      "panels": []
+    },
+    {
+      "id": 17,
+      "type": "barchart",
+      "title": "Top Affected Organizations",
+      "description": "",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 39
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "WITH scoped_events AS (\n  SELECT\n    SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE $__timeFilter(event_time)\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')), '/') > 0\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')\n)\nSELECT organization, COUNT(*) AS events\nFROM scoped_events\nGROUP BY organization\nORDER BY events DESC\nLIMIT 10",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 82,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barRadius": 4,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.72,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      }
+    },
+    {
+      "id": 18,
+      "type": "barchart",
+      "title": "Top Affected Repositories",
+      "description": "",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 39
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')) AS repository_name,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\nWHERE $__timeFilter(event_time)\n  AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')) != ''\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')\nGROUP BY repository_name\nORDER BY events DESC\nLIMIT 10",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 82,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barRadius": 4,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.72,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      }
+    },
+    {
+      "id": 19,
+      "type": "barchart",
+      "title": "Top Initiating Actors",
+      "description": "",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 39
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  COALESCE(actor, 'Unknown') AS actor_name,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$governance_area' = 'ALL' OR governance_area = '$governance_area')\nAND ('$review_priority' = 'ALL' OR review_priority = '$review_priority')\nAND ('$actor' = 'ALL' OR actor = '$actor')\nGROUP BY actor_name\nORDER BY events DESC\nLIMIT 10",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 82,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barRadius": 4,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.72,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      }
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Security-control governance",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 47
+      },
+      "panels": []
+    },
+    {
+      "id": 21,
+      "type": "barchart",
+      "title": "Critical Changes by Security Capability",
+      "description": "Critical control disablement or removal after exceptions.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  CASE\n    WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n    WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n    WHEN governance_event_type LIKE 'CODEQL%'\n      OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n    WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n    WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n    WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n    WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n    WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n    WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n    ELSE 'Other security control'\n  END AS security_capability,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority = 'CRITICAL'\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$actor' = 'ALL' OR actor = '$actor')\nGROUP BY security_capability\nORDER BY events DESC",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 82,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barRadius": 4,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.72,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      }
+    },
+    {
+      "id": 22,
+      "type": "barchart",
+      "title": "Repositories with Security Weakening",
+      "description": "Repositories with High or Critical Advanced Security events.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 48
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')) AS repository_name,\n  COUNT(*) AS security_events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\nWHERE $__timeFilter(event_time)\n  AND governance_area = 'ADVANCED_SECURITY_POSTURE'\n  AND review_priority IN ('CRITICAL', 'HIGH')\n  AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')) != ''\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$actor' = 'ALL' OR actor = '$actor')\nGROUP BY repository_name\nORDER BY security_events DESC\nLIMIT 12",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 82,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineWidth": 1,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barRadius": 4,
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.72,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "horizontal",
+        "showValue": "always",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      }
+    },
+    {
+      "id": 23,
+      "type": "table",
+      "title": "Recent Critical Security-Control Changes",
+      "description": "Manual or non-exempt critical weakening of security and identity guardrails.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 56
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  event_time,\n  governance_event_type,\n  action,\n  actor AS initiated_by,\n  SPLIT(repository, '/')[SAFE_OFFSET(0)] AS organization,\n  repository,\n  review_priority,\n  review_reason\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority = 'CRITICAL'\n  AND (\n    governance_area = 'ADVANCED_SECURITY_POSTURE'\n    OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n  )\nAND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\nAND ('$actor' = 'ALL' OR actor = '$actor')\nORDER BY event_time DESC\nLIMIT 200",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "event_time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 175
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "governance_event_type"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 300
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "repository"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 320
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_priority"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "CRITICAL": {
+                        "text": "CRITICAL",
+                        "color": "red"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_reason"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 520
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        },
+        "showHeader": true,
+        "sortBy": []
+      }
+    }
+  ],
+  "refresh": "15m",
+  "schemaVersion": 39,
+  "tags": [
+    "github-governance",
+    "governance-overview",
+    "bigquery",
+    "production-candidate"
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "organization",
+        "label": "Organization",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+        },
+        "query": "WITH repository_paths AS (\n  SELECT DISTINCT\n    TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')) AS repository_path\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')) != ''\n)\nSELECT organization\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT\n    SPLIT(repository_path, '/')[SAFE_OFFSET(0)] AS organization,\n    1 AS sort_order\n  FROM repository_paths\n  WHERE STRPOS(repository_path, '/') > 0\n)\nORDER BY sort_order, organization\nLIMIT 5000",
+        "definition": "WITH repository_paths AS (\n  SELECT DISTINCT\n    TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')) AS repository_path\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')) != ''\n)\nSELECT organization\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT\n    SPLIT(repository_path, '/')[SAFE_OFFSET(0)] AS organization,\n    1 AS sort_order\n  FROM repository_paths\n  WHERE STRPOS(repository_path, '/') > 0\n)\nORDER BY sort_order, organization\nLIMIT 5000",
+        "includeAll": false,
+        "allValue": "",
+        "multi": false,
+        "hide": 0,
+        "refresh": 1,
+        "sort": 0,
+        "current": {
+          "selected": true,
+          "text": "ALL",
+          "value": "ALL"
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false
+      },
+      {
+        "name": "governance_area",
+        "label": "Governance Area",
+        "type": "custom",
+        "hide": 0,
+        "skipUrlSync": false,
+        "query": "ALL,ADVANCED_SECURITY_POSTURE,BRANCH_AND_MERGE_CONTROLS,ACCESS_GOVERNANCE,OAUTH_ACCESS_GOVERNANCE,IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY,REPOSITORY_SECURITY_POSTURE,WORKFLOW_AND_AUTOMATION_GOVERNANCE,AUDIT_AND_EVIDENCE_INTEGRITY",
+        "definition": "Governance-area selector",
+        "includeAll": false,
+        "multi": false,
+        "allValue": "",
+        "current": {
+          "selected": true,
+          "text": "ALL",
+          "value": "ALL"
+        },
+        "options": []
+      },
+      {
+        "name": "review_priority",
+        "label": "Review Priority",
+        "type": "custom",
+        "hide": 0,
+        "skipUrlSync": false,
+        "query": "ALL,CRITICAL,HIGH,MEDIUM,LOW",
+        "definition": "Final classifier review-priority selector",
+        "includeAll": false,
+        "multi": false,
+        "allValue": "",
+        "current": {
+          "selected": true,
+          "text": "ALL",
+          "value": "ALL"
+        },
+        "options": []
+      },
+      {
+        "name": "actor",
+        "label": "Actor",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+        },
+        "query": "SELECT actor_name\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1 AS sort_order\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND actor IS NOT NULL\n    AND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
+        "definition": "SELECT actor_name\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1 AS sort_order\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND actor IS NOT NULL\n    AND (\n  '$organization' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(\n      TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\"]', '')),\n      '/'\n    )[SAFE_OFFSET(0)] = '$organization'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
+        "includeAll": false,
+        "allValue": "",
+        "multi": false,
+        "hide": 0,
+        "refresh": 1,
+        "sort": 0,
+        "current": {
+          "selected": true,
+          "text": "ALL",
+          "value": "ALL"
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ],
+    "time_options": [
+      "6h",
+      "12h",
+      "24h",
+      "7d",
+      "30d",
+      "90d",
+      "180d"
+    ]
+  },
+  "timezone": "browser",
+  "title": "GitHub Governance Overview",
+  "uid": "github-governance-overview-redesigned",
+  "version": 1,
+  "weekStart": ""
+}
