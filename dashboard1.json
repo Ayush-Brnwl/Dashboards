@@ -11,7 +11,7 @@
   "annotations": {
     "list": []
   },
-  "description": "Advanced Security and critical-control governance dashboard.",
+  "description": "Governance reporting, evidence export and review-preparation dashboard.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
@@ -20,7 +20,7 @@
     {
       "id": 1,
       "type": "text",
-      "title": "Advanced Security & Critical Controls",
+      "title": "Governance Reports & Evidence",
       "gridPos": {
         "h": 4,
         "w": 24,
@@ -29,13 +29,14 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "### Advanced Security and Critical-Control Governance\nTrack manual disablement, bypass and policy changes for push protection, CodeQL, secret scanning and other repository security controls.  \n**Manual weakening should remain CRITICAL unless an approved automation exception lowers the final priority.**"
+        "content": "### Governance Reporting and Evidence\nUse this dashboard for weekly governance reporting, review preparation, audit evidence and export-ready event investigation.  \n**AI Assistant is not enabled yet**; this dashboard provides the structured evidence layer that the future assistant will query."
       }
     },
     {
       "id": 2,
       "type": "stat",
-      "title": "Security Governance Events",
+      "title": "Classified Governance Events",
+      "description": "",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -55,7 +56,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time)\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)",
+          "rawSql": "SELECT COUNT(*) value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -82,19 +83,23 @@
       "options": {
         "colorMode": "value",
         "graphMode": "area",
+        "justifyMode": "auto",
         "reduceOptions": {
+          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
-        }
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
       }
     },
     {
       "id": 3,
       "type": "stat",
-      "title": "Critical Control Changes",
+      "title": "Critical Events",
+      "description": "",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -114,7 +119,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND review_priority='CRITICAL'\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)",
+          "rawSql": "SELECT COUNT(*) value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND review_priority='CRITICAL'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -141,19 +146,23 @@
       "options": {
         "colorMode": "value",
         "graphMode": "area",
+        "justifyMode": "auto",
         "reduceOptions": {
+          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
-        }
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
       }
     },
     {
       "id": 4,
       "type": "stat",
-      "title": "Push Protection Events",
+      "title": "High Events",
+      "description": "",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -173,7 +182,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND governance_event_type LIKE 'PUSH_PROTECTION%'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')",
+          "rawSql": "SELECT COUNT(*) value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND review_priority='HIGH'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -200,19 +209,23 @@
       "options": {
         "colorMode": "value",
         "graphMode": "area",
+        "justifyMode": "auto",
         "reduceOptions": {
+          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
-        }
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
       }
     },
     {
       "id": 5,
       "type": "stat",
-      "title": "CodeQL / Code Scanning",
+      "title": "Organizations Covered",
+      "description": "",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -232,7 +245,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND (governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%')\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')",
+          "rawSql": "SELECT COUNT(DISTINCT COALESCE(NULLIF(org,''), SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')),'/')[SAFE_OFFSET(0)])) value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nLEFT JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\nWHERE $__timeFilter(event_time)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -259,19 +272,23 @@
       "options": {
         "colorMode": "value",
         "graphMode": "area",
+        "justifyMode": "auto",
         "reduceOptions": {
+          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
-        }
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
       }
     },
     {
       "id": 6,
       "type": "stat",
-      "title": "Security Configuration Events",
+      "title": "Repositories Covered",
+      "description": "",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -291,66 +308,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) value FROM `db-dev-l4to-mp-github.github_governance.github_governance_events` WHERE $__timeFilter(event_time) AND governance_event_type LIKE 'SECURITY_CONFIGURATION%'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#E0B400"
-          },
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#E0B400",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      }
-    },
-    {
-      "id": 7,
-      "type": "stat",
-      "title": "Repositories Affected",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 20,
-        "y": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 1,
-          "rawQuery": true,
-          "rawSql": "SELECT COUNT(DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))) value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\nWHERE $__timeFilter(event_time) AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))!=''\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)",
+          "rawSql": "SELECT COUNT(DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))) value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\nWHERE $__timeFilter(event_time) AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))!=''\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -377,19 +335,85 @@
       "options": {
         "colorMode": "value",
         "graphMode": "area",
+        "justifyMode": "auto",
         "reduceOptions": {
+          "values": false,
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Active Review Exceptions",
+      "description": "",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) value FROM `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions` WHERE is_active=TRUE",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
         }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#56A3A6"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#56A3A6",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
       }
     },
     {
       "id": 8,
       "type": "timeseries",
-      "title": "Security-Control Changes Over Time",
+      "title": "Weekly Governance Event Trend",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -409,7 +433,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT TIMESTAMP_TRUNC(event_time, DAY) time,\nreview_priority metric, COUNT(*) value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)\nGROUP BY time, metric\nORDER BY time",
+          "rawSql": "SELECT\n  TIMESTAMP_TRUNC(event_time, WEEK(MONDAY)) AS time,\n  review_priority AS metric,\n  COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nGROUP BY time, metric\nORDER BY time",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -421,7 +445,7 @@
           },
           "custom": {
             "drawStyle": "bars",
-            "fillOpacity": 80,
+            "fillOpacity": 82,
             "lineWidth": 0,
             "stacking": {
               "group": "A",
@@ -506,7 +530,7 @@
     {
       "id": 9,
       "type": "barchart",
-      "title": "Events by Security Capability",
+      "title": "Events by Governance Area",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -526,7 +550,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND security_capability, COUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)\nGROUP BY security_capability ORDER BY events DESC",
+          "rawSql": "SELECT governance_area, COUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nGROUP BY governance_area\nORDER BY events DESC",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -537,7 +561,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "fillOpacity": 80,
+            "fillOpacity": 82,
             "gradientMode": "none",
             "stacking": {
               "group": "A",
@@ -561,7 +585,7 @@
     {
       "id": 10,
       "type": "barchart",
-      "title": "Top Initiating Actors",
+      "title": "Top Governance Event Types",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -581,7 +605,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(actor,'Unknown') actor_name, COUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)\nGROUP BY actor_name ORDER BY events DESC LIMIT 12",
+          "rawSql": "SELECT governance_event_type, COUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nGROUP BY governance_event_type\nORDER BY events DESC\nLIMIT 12",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -592,7 +616,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "fillOpacity": 80,
+            "fillOpacity": 82,
             "gradientMode": "none",
             "stacking": {
               "group": "A",
@@ -616,13 +640,14 @@
     {
       "id": 11,
       "type": "table",
-      "title": "Critical Security-Control Review Queue",
+      "title": "Weekly Executive Summary",
+      "description": "Export-ready weekly summary grouped by governance area.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
       },
       "gridPos": {
-        "h": 11,
+        "h": 10,
         "w": 24,
         "x": 0,
         "y": 17
@@ -636,7 +661,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT event_time, review_priority,\nCASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND security_capability,\ngovernance_event_type, action, actor initiated_by,\nSPLIT(repository,'/')[SAFE_OFFSET(0)] organization,\nrepository, review_reason\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority='CRITICAL'\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)\nORDER BY event_time DESC\nLIMIT 300",
+          "rawSql": "SELECT\n  TIMESTAMP_TRUNC(event_time, WEEK(MONDAY)) AS week_start,\n  governance_area,\n  COUNT(*) AS total_events,\n  COUNTIF(review_priority='CRITICAL') AS critical_events,\n  COUNTIF(review_priority='HIGH') AS high_events,\n  COUNTIF(review_priority='MEDIUM') AS medium_events,\n  COUNTIF(review_priority='LOW') AS low_events,\n  COUNT(DISTINCT actor) AS initiating_actors\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nGROUP BY week_start, governance_area\nORDER BY week_start DESC, critical_events DESC, high_events DESC\nLIMIT 200",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -649,17 +674,61 @@
             }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_priority"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "CRITICAL": {
+                        "text": "CRITICAL",
+                        "color": "red"
+                      },
+                      "HIGH": {
+                        "text": "HIGH",
+                        "color": "orange"
+                      },
+                      "MEDIUM": {
+                        "text": "MEDIUM",
+                        "color": "yellow"
+                      },
+                      "LOW": {
+                        "text": "LOW",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "showHeader": true,
-        "cellHeight": "sm"
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
       }
     },
     {
       "id": 12,
       "type": "barchart",
-      "title": "Top Affected Repositories",
+      "title": "Critical / High Events by Organization",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -668,7 +737,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 28
+        "y": 27
       },
       "targets": [
         {
@@ -679,7 +748,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) repository_name, COUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\nWHERE $__timeFilter(event_time) AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))!=''\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)\nGROUP BY repository_name ORDER BY events DESC LIMIT 12",
+          "rawSql": "SELECT COALESCE(NULLIF(org,''), SPLIT(repository,'/')[SAFE_OFFSET(0)]) organization,\nCOUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority IN ('CRITICAL','HIGH')\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nGROUP BY organization\nORDER BY events DESC\nLIMIT 12",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -690,7 +759,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "fillOpacity": 80,
+            "fillOpacity": 82,
             "gradientMode": "none",
             "stacking": {
               "group": "A",
@@ -714,7 +783,7 @@
     {
       "id": 13,
       "type": "barchart",
-      "title": "Top Security Event Types",
+      "title": "Critical / High Events by Repository",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -723,7 +792,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 28
+        "y": 27
       },
       "targets": [
         {
@@ -734,7 +803,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT governance_event_type event_type, COUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)\nGROUP BY event_type ORDER BY events DESC LIMIT 12",
+          "rawSql": "SELECT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) repository_name, COUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\nWHERE $__timeFilter(event_time)\n  AND review_priority IN ('CRITICAL','HIGH')\n  AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))!=''\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nGROUP BY repository_name\nORDER BY events DESC\nLIMIT 12",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -745,7 +814,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "fillOpacity": 80,
+            "fillOpacity": 82,
             "gradientMode": "none",
             "stacking": {
               "group": "A",
@@ -769,7 +838,7 @@
     {
       "id": 14,
       "type": "barchart",
-      "title": "Top Underlying Audit Actions",
+      "title": "Top Initiating Actors",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -778,7 +847,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 28
+        "y": 27
       },
       "targets": [
         {
@@ -789,7 +858,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT action, COUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)\nGROUP BY action ORDER BY events DESC LIMIT 12",
+          "rawSql": "SELECT COALESCE(actor,'Unknown') actor_name, COUNT(*) events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nGROUP BY actor_name\nORDER BY events DESC\nLIMIT 12",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -800,7 +869,7 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "fillOpacity": 80,
+            "fillOpacity": 82,
             "gradientMode": "none",
             "stacking": {
               "group": "A",
@@ -824,7 +893,96 @@
     {
       "id": 15,
       "type": "table",
-      "title": "Approved Automation Security Events",
+      "title": "Critical and High Evidence Export",
+      "description": "Detailed evidence table for governance review, audit support and CSV export.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 35
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  event_time,\n  review_priority,\n  governance_area,\n  governance_event_type,\n  action,\n  actor AS initiated_by,\n  affected_identity,\n  org,\n  repository,\n  review_reason,\n  rule_id,\n  rule_version,\n  event_key,\n  source_file\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority IN ('CRITICAL','HIGH')\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nORDER BY\n  CASE review_priority WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2 ELSE 3 END,\n  event_time DESC\nLIMIT 1000",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_priority"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "CRITICAL": {
+                        "text": "CRITICAL",
+                        "color": "red"
+                      },
+                      "HIGH": {
+                        "text": "HIGH",
+                        "color": "orange"
+                      },
+                      "MEDIUM": {
+                        "text": "MEDIUM",
+                        "color": "yellow"
+                      },
+                      "LOW": {
+                        "text": "LOW",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Active Review Exception Register",
+      "description": "Approved automation identities and active review-priority overrides.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -833,7 +991,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 36
+        "y": 47
       },
       "targets": [
         {
@@ -844,7 +1002,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT e.event_time, e.actor, e.action, e.governance_event_type,\ne.repository, e.review_priority, x.reason exception_reason, x.owner_team\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events` e\nJOIN `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions` x\n  ON x.is_active=TRUE\n AND LOWER(x.actor)=LOWER(COALESCE(e.actor,''))\n AND (x.action='*' OR LOWER(x.action)=LOWER(COALESCE(e.action,'')))\n AND (x.governance_event_type IS NULL OR x.governance_event_type='*'\n      OR UPPER(x.governance_event_type)=UPPER(COALESCE(e.governance_event_type,'')))\nWHERE $__timeFilter(e.event_time)\n  AND (e.governance_area='ADVANCED_SECURITY_POSTURE'\n       OR e.governance_event_type='IDENTITY_GUARDRAIL_DISABLED')\nORDER BY e.event_time DESC\nLIMIT 200",
+          "rawSql": "SELECT\n  exception_id,\n  actor,\n  action,\n  governance_event_type,\n  priority_override,\n  reason,\n  owner_team,\n  is_active\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions`\nWHERE is_active=TRUE\nORDER BY owner_team, actor, action\nLIMIT 500",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -857,17 +1015,62 @@
             }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_priority"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "CRITICAL": {
+                        "text": "CRITICAL",
+                        "color": "red"
+                      },
+                      "HIGH": {
+                        "text": "HIGH",
+                        "color": "orange"
+                      },
+                      "MEDIUM": {
+                        "text": "MEDIUM",
+                        "color": "yellow"
+                      },
+                      "LOW": {
+                        "text": "LOW",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "showHeader": true,
-        "cellHeight": "sm"
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
       }
     },
     {
-      "id": 16,
+      "id": 17,
       "type": "table",
-      "title": "All Recent Security-Control Changes",
+      "title": "All Governance Evidence",
+      "description": "Complete curated event history for evidence export.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -876,7 +1079,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 36
+        "y": 47
       },
       "targets": [
         {
@@ -887,7 +1090,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT event_time, review_priority,\nCASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND security_capability,\ngovernance_event_type, action, actor initiated_by,\nrepository, review_reason\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  governance_area = 'ADVANCED_SECURITY_POSTURE'\n  OR governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND ('${actor:raw}' = 'ALL' OR actor = '${actor:raw}')\nAND ('${review_priority:raw}' = 'ALL' OR review_priority = '${review_priority:raw}')\nAND (\n  '${security_capability:raw}' = 'ALL'\n  OR (CASE\n  WHEN governance_event_type LIKE 'PUSH_PROTECTION%' THEN 'Push protection'\n  WHEN governance_event_type LIKE 'ADVANCED_SECURITY%' THEN 'Advanced Security'\n  WHEN governance_event_type LIKE 'CODEQL%' OR governance_event_type LIKE 'CODE_SCANNING%' THEN 'CodeQL / code scanning'\n  WHEN governance_event_type LIKE 'SECRET_SCANNING%' THEN 'Secret scanning'\n  WHEN governance_event_type LIKE 'SECURITY_CONFIGURATION%' THEN 'Security configuration'\n  WHEN governance_event_type LIKE 'DEPENDABOT%' THEN 'Dependabot security updates'\n  WHEN governance_event_type LIKE 'VULNERABILITY_ALERTS%' THEN 'Vulnerability alerts'\n  WHEN governance_event_type LIKE 'DEPENDENCY_GRAPH%' THEN 'Dependency graph'\n  WHEN governance_event_type = 'IDENTITY_GUARDRAIL_DISABLED' THEN 'SAML / 2FA guardrails'\n  ELSE 'Other security control'\nEND) = '${security_capability:raw}'\n)\nORDER BY event_time DESC\nLIMIT 500",
+          "rawSql": "SELECT\n  event_time,\n  review_priority,\n  governance_area,\n  governance_event_type,\n  action,\n  actor AS initiated_by,\n  affected_identity,\n  org,\n  repository,\n  review_reason,\n  rule_id,\n  rule_version,\n  event_key,\n  source_file\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${governance_area:raw}' = 'ALL'\n  OR governance_area = '${governance_area:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nORDER BY event_time DESC\nLIMIT 1000",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -900,11 +1103,55 @@
             }
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_priority"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "CRITICAL": {
+                        "text": "CRITICAL",
+                        "color": "red"
+                      },
+                      "HIGH": {
+                        "text": "HIGH",
+                        "color": "orange"
+                      },
+                      "MEDIUM": {
+                        "text": "MEDIUM",
+                        "color": "yellow"
+                      },
+                      "LOW": {
+                        "text": "LOW",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "showHeader": true,
-        "cellHeight": "sm"
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
       }
     }
   ],
@@ -912,8 +1159,9 @@
   "schemaVersion": 39,
   "tags": [
     "github-governance",
-    "advanced-security",
-    "critical-controls"
+    "reports",
+    "evidence",
+    "audit"
   ],
   "templating": {
     "list": [
@@ -926,15 +1174,15 @@
           "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
         },
         "query": {
-          "query": "WITH organizations AS (\n  SELECT TRIM(org) organization FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND org IS NOT NULL AND TRIM(org)!=''\n  UNION DISTINCT\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')),'/')[SAFE_OFFSET(0)] organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')),'/')>0\n)\nSELECT organization __text, organization __value\nFROM (SELECT 'ALL' organization,0 sort_order UNION ALL\n      SELECT DISTINCT organization,1 FROM organizations WHERE organization IS NOT NULL)\nORDER BY sort_order, organization LIMIT 5000",
-          "rawSql": "WITH organizations AS (\n  SELECT TRIM(org) organization FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND org IS NOT NULL AND TRIM(org)!=''\n  UNION DISTINCT\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')),'/')[SAFE_OFFSET(0)] organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')),'/')>0\n)\nSELECT organization __text, organization __value\nFROM (SELECT 'ALL' organization,0 sort_order UNION ALL\n      SELECT DISTINCT organization,1 FROM organizations WHERE organization IS NOT NULL)\nORDER BY sort_order, organization LIMIT 5000",
+          "query": "WITH organizations AS (\n  SELECT TRIM(org) AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND org IS NOT NULL\n    AND TRIM(org) != ''\n\n  UNION DISTINCT\n\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/') > 0\n)\nSELECT organization AS __text, organization AS __value\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT organization, 1\n  FROM organizations\n  WHERE organization IS NOT NULL AND organization != ''\n)\nORDER BY sort_order, organization\nLIMIT 5000",
+          "rawSql": "WITH organizations AS (\n  SELECT TRIM(org) AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND org IS NOT NULL\n    AND TRIM(org) != ''\n\n  UNION DISTINCT\n\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/') > 0\n)\nSELECT organization AS __text, organization AS __value\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT organization, 1\n  FROM organizations\n  WHERE organization IS NOT NULL AND organization != ''\n)\nORDER BY sort_order, organization\nLIMIT 5000",
           "format": 1,
           "rawQuery": true,
           "editorMode": "code",
           "project": "db-dev-l4to-mp-github",
           "refId": "StandardVariableQuery"
         },
-        "definition": "WITH organizations AS (\n  SELECT TRIM(org) organization FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND org IS NOT NULL AND TRIM(org)!=''\n  UNION DISTINCT\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')),'/')[SAFE_OFFSET(0)] organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')),'/')>0\n)\nSELECT organization __text, organization __value\nFROM (SELECT 'ALL' organization,0 sort_order UNION ALL\n      SELECT DISTINCT organization,1 FROM organizations WHERE organization IS NOT NULL)\nORDER BY sort_order, organization LIMIT 5000",
+        "definition": "WITH organizations AS (\n  SELECT TRIM(org) AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND org IS NOT NULL\n    AND TRIM(org) != ''\n\n  UNION DISTINCT\n\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/') > 0\n)\nSELECT organization AS __text, organization AS __value\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT organization, 1\n  FROM organizations\n  WHERE organization IS NOT NULL AND organization != ''\n)\nORDER BY sort_order, organization\nLIMIT 5000",
         "includeAll": false,
         "multi": false,
         "hide": 0,
@@ -958,15 +1206,15 @@
           "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
         },
         "query": {
-          "query": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))!=''\n)\nSELECT repository_name __text, repository_name __value\nFROM (SELECT 'ALL' repository_name,0 sort_order UNION ALL\n      SELECT repository_name,1 FROM repositories\n      WHERE '${organization:raw}'='ALL'\n         OR SPLIT(repository_name,'/')[SAFE_OFFSET(0)]='${organization:raw}')\nORDER BY sort_order, repository_name LIMIT 10000",
-          "rawSql": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))!=''\n)\nSELECT repository_name __text, repository_name __value\nFROM (SELECT 'ALL' repository_name,0 sort_order UNION ALL\n      SELECT repository_name,1 FROM repositories\n      WHERE '${organization:raw}'='ALL'\n         OR SPLIT(repository_name,'/')[SAFE_OFFSET(0)]='${organization:raw}')\nORDER BY sort_order, repository_name LIMIT 10000",
+          "query": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\n)\nSELECT repository_name AS __text, repository_name AS __value\nFROM (\n  SELECT 'ALL' AS repository_name, 0 AS sort_order\n  UNION ALL\n  SELECT repository_name, 1\n  FROM repositories\n  WHERE '${organization:raw}' = 'ALL'\n     OR SPLIT(repository_name, '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n)\nORDER BY sort_order, repository_name\nLIMIT 10000",
+          "rawSql": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\n)\nSELECT repository_name AS __text, repository_name AS __value\nFROM (\n  SELECT 'ALL' AS repository_name, 0 AS sort_order\n  UNION ALL\n  SELECT repository_name, 1\n  FROM repositories\n  WHERE '${organization:raw}' = 'ALL'\n     OR SPLIT(repository_name, '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n)\nORDER BY sort_order, repository_name\nLIMIT 10000",
           "format": 1,
           "rawQuery": true,
           "editorMode": "code",
           "project": "db-dev-l4to-mp-github",
           "refId": "StandardVariableQuery"
         },
-        "definition": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository,''),',')) repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))!=''\n)\nSELECT repository_name __text, repository_name __value\nFROM (SELECT 'ALL' repository_name,0 sort_order UNION ALL\n      SELECT repository_name,1 FROM repositories\n      WHERE '${organization:raw}'='ALL'\n         OR SPLIT(repository_name,'/')[SAFE_OFFSET(0)]='${organization:raw}')\nORDER BY sort_order, repository_name LIMIT 10000",
+        "definition": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\n)\nSELECT repository_name AS __text, repository_name AS __value\nFROM (\n  SELECT 'ALL' AS repository_name, 0 AS sort_order\n  UNION ALL\n  SELECT repository_name, 1\n  FROM repositories\n  WHERE '${organization:raw}' = 'ALL'\n     OR SPLIT(repository_name, '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n)\nORDER BY sort_order, repository_name\nLIMIT 10000",
         "includeAll": false,
         "multi": false,
         "hide": 0,
@@ -982,11 +1230,11 @@
         "skipUrlSync": false
       },
       {
-        "name": "security_capability",
-        "label": "Security Capability",
+        "name": "governance_area",
+        "label": "Governance Area",
         "type": "custom",
-        "query": "ALL,Push protection,Advanced Security,CodeQL / code scanning,Secret scanning,Security configuration,Dependabot security updates,Vulnerability alerts,Dependency graph,SAML / 2FA guardrails,Other security control",
-        "definition": "ALL,Push protection,Advanced Security,CodeQL / code scanning,Secret scanning,Security configuration,Dependabot security updates,Vulnerability alerts,Dependency graph,SAML / 2FA guardrails,Other security control",
+        "query": "ALL,ADVANCED_SECURITY_POSTURE,BRANCH_AND_MERGE_CONTROLS,ACCESS_GOVERNANCE,OAUTH_ACCESS_GOVERNANCE,IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY,REPOSITORY_SECURITY_POSTURE,WORKFLOW_AND_AUTOMATION_GOVERNANCE,AUDIT_AND_EVIDENCE_INTEGRITY",
+        "definition": "ALL,ADVANCED_SECURITY_POSTURE,BRANCH_AND_MERGE_CONTROLS,ACCESS_GOVERNANCE,OAUTH_ACCESS_GOVERNANCE,IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY,REPOSITORY_SECURITY_POSTURE,WORKFLOW_AND_AUTOMATION_GOVERNANCE,AUDIT_AND_EVIDENCE_INTEGRITY",
         "includeAll": false,
         "multi": false,
         "hide": 0,
@@ -1024,15 +1272,15 @@
           "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
         },
         "query": {
-          "query": "SELECT actor_name __text, actor_name __value\nFROM (\n  SELECT 'ALL' actor_name,0 sort_order\n  UNION ALL\n  SELECT DISTINCT actor actor_name,1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND actor IS NOT NULL AND TRIM(actor)!=''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name LIMIT 10000",
-          "rawSql": "SELECT actor_name __text, actor_name __value\nFROM (\n  SELECT 'ALL' actor_name,0 sort_order\n  UNION ALL\n  SELECT DISTINCT actor actor_name,1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND actor IS NOT NULL AND TRIM(actor)!=''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name LIMIT 10000",
+          "query": "SELECT actor_name AS __text, actor_name AS __value\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND actor IS NOT NULL\n    AND TRIM(actor) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
+          "rawSql": "SELECT actor_name AS __text, actor_name AS __value\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND actor IS NOT NULL\n    AND TRIM(actor) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
           "format": 1,
           "rawQuery": true,
           "editorMode": "code",
           "project": "db-dev-l4to-mp-github",
           "refId": "StandardVariableQuery"
         },
-        "definition": "SELECT actor_name __text, actor_name __value\nFROM (\n  SELECT 'ALL' actor_name,0 sort_order\n  UNION ALL\n  SELECT DISTINCT actor actor_name,1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND actor IS NOT NULL AND TRIM(actor)!=''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name LIMIT 10000",
+        "definition": "SELECT actor_name AS __text, actor_name AS __value\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND actor IS NOT NULL\n    AND TRIM(actor) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
         "includeAll": false,
         "multi": false,
         "hide": 0,
@@ -1061,8 +1309,6 @@
       "1h"
     ],
     "time_options": [
-      "6h",
-      "12h",
       "24h",
       "7d",
       "30d",
@@ -1071,7 +1317,7 @@
     ]
   },
   "timezone": "browser",
-  "title": "Advanced Security & Critical Controls",
-  "uid": "advanced-security-critical-controls",
+  "title": "Governance Reports & Evidence",
+  "uid": "governance-reports-evidence",
   "version": 1
 }
