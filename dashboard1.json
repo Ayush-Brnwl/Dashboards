@@ -11,7 +11,7 @@
   "annotations": {
     "list": []
   },
-  "description": "Branch-protection, required-status-check and merge-control governance dashboard.",
+  "description": "Access-governance and identity-lifecycle dashboard for GitHub governance events.",
   "editable": true,
   "graphTooltip": 1,
   "id": null,
@@ -20,7 +20,7 @@
     {
       "id": 1,
       "type": "text",
-      "title": "Branch & Merge Controls",
+      "title": "Access Governance & Identity Lifecycle",
       "gridPos": {
         "h": 4,
         "w": 24,
@@ -29,14 +29,14 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "### Branch and Merge-Control Governance\nReview protected-branch changes, policy overrides, required-status-check changes and repository merge-setting changes.  \n**High-volume approved platform automation remains visible but is lowered through the exception register.**"
+        "content": "### Access Governance and Identity Lifecycle\nReview organization, team and repository access changes together with user and critical technical-account lifecycle events.  \n`actor` identifies who initiated the change; `affected_identity` identifies whose access or account was changed."
       }
     },
     {
       "id": 2,
       "type": "stat",
-      "title": "Branch & Merge Events",
-      "description": "All curated branch and merge-control events.",
+      "title": "Access & Identity Events",
+      "description": "All curated access and identity-lifecycle events.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -56,7 +56,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)",
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -98,8 +98,8 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "Policy Overrides",
-      "description": "Protected-branch policy overrides.",
+      "title": "Access Grants",
+      "description": "Organization, team and repository access granted.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -119,70 +119,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND (\n    action = 'protected_branch.policy_override'\n    OR governance_event_type = 'PROTECTED_BRANCH_POLICY_OVERRIDE'\n  )\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#F2495C"
-          },
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#F2495C",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      }
-    },
-    {
-      "id": 4,
-      "type": "stat",
-      "title": "Merge-Setting Changes",
-      "description": "Repository merge-method and merge-policy changes.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 8,
-        "y": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 1,
-          "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND (\n    action = 'repo.change_merge_setting'\n    OR governance_event_type = 'MERGE_SETTING_CHANGE'\n  )\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)",
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_event_type IN ('ORG_MEMBER_ADDED',\n'TEAM_MEMBER_ADDED',\n'REPOSITORY_MEMBER_ADDED',\n'REPOSITORY_TEAM_ADDED')\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -222,10 +159,10 @@
       }
     },
     {
-      "id": 5,
+      "id": 4,
       "type": "stat",
-      "title": "Required Status-Check Changes",
-      "description": "Required status-check creation, update and removal.",
+      "title": "Access Removals",
+      "description": "Organization, team and repository access removed.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -233,7 +170,7 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 12,
+        "x": 8,
         "y": 4
       },
       "targets": [
@@ -245,133 +182,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND (\n    STARTS_WITH(action, 'required_status_check.')\n    OR governance_event_type = 'REQUIRED_STATUS_CHECK_CHANGE'\n  )\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#B877D9"
-          },
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#B877D9",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      }
-    },
-    {
-      "id": 6,
-      "type": "stat",
-      "title": "Protected-Branch Changes",
-      "description": "All protected-branch configuration and control changes.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 16,
-        "y": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 1,
-          "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND STARTS_WITH(action, 'protected_branch.')\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)",
-          "refId": "A",
-          "project": "db-dev-l4to-mp-github"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#E0B400"
-          },
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#E0B400",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "textMode": "auto",
-        "wideLayout": true
-      }
-    },
-    {
-      "id": 7,
-      "type": "stat",
-      "title": "Repositories Affected",
-      "description": "Distinct repositories with branch or merge-control changes.",
-      "datasource": {
-        "type": "grafana-bigquery-datasource",
-        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 20,
-        "y": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-bigquery-datasource",
-            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
-          },
-          "editorMode": "code",
-          "format": 1,
-          "rawQuery": true,
-          "rawSql": "SELECT COUNT(DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', ''))) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\nWHERE $__timeFilter(event_time)\n  AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n  AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)",
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_event_type IN ('ORG_MEMBER_REMOVED',\n'TEAM_MEMBER_REMOVED',\n'REPOSITORY_MEMBER_REMOVED',\n'REPOSITORY_TEAM_REMOVED')\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -411,10 +222,199 @@
       }
     },
     {
+      "id": 5,
+      "type": "stat",
+      "title": "User Suspensions",
+      "description": "User and critical technical-account suspension events.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_event_type IN (\n    'USER_ACCOUNT_SUSPENDED',\n    'CRITICAL_TECHNICAL_ACCOUNT_SUSPENDED'\n  )\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#F2495C"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#F2495C",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Critical Technical-Account Events",
+      "description": "Lifecycle events for assessed critical technical accounts.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_event_type IN (\n    'CRITICAL_TECHNICAL_ACCOUNT_SUSPENDED',\n    'CRITICAL_TECHNICAL_ACCOUNT_RESTORED'\n  )\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#B877D9"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#B877D9",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Affected Identities",
+      "description": "Distinct identities whose access or lifecycle changed.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT COUNT(DISTINCT affected_identity) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND affected_identity IS NOT NULL\n  AND TRIM(affected_identity) != ''\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#56A3A6"
+          },
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#56A3A6",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      }
+    },
+    {
       "id": 8,
       "type": "timeseries",
-      "title": "Branch & Merge-Control Changes Over Time",
-      "description": "Daily activity based on source event time, stacked by final review priority.",
+      "title": "Access & Identity Events Over Time",
+      "description": "Daily access and identity-lifecycle events using source event time.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -434,7 +434,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n  TIMESTAMP_TRUNC(event_time, DAY) AS time,\n  review_priority AS metric,\n  COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY time, metric\nORDER BY time",
+          "rawSql": "SELECT\n  TIMESTAMP_TRUNC(event_time, DAY) AS time,\n  review_priority AS metric,\n  COUNT(*) AS value\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY time, metric\nORDER BY time",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -531,8 +531,8 @@
     {
       "id": 9,
       "type": "barchart",
-      "title": "Events by Control Type",
-      "description": "Classifier event families within branch and merge controls.",
+      "title": "Access Granted vs Removed",
+      "description": "Direction of access changes.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -552,7 +552,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT governance_event_type, COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY governance_event_type\nORDER BY events DESC\nLIMIT 12",
+          "rawSql": "SELECT\n  CASE\n    WHEN governance_event_type IN ('ORG_MEMBER_ADDED',\n'TEAM_MEMBER_ADDED',\n'REPOSITORY_MEMBER_ADDED',\n'REPOSITORY_TEAM_ADDED') THEN 'Granted / Added'\n    WHEN governance_event_type IN ('ORG_MEMBER_REMOVED',\n'TEAM_MEMBER_REMOVED',\n'REPOSITORY_MEMBER_REMOVED',\n'REPOSITORY_TEAM_REMOVED') THEN 'Removed'\n    ELSE 'Other lifecycle'\n  END AS access_direction,\n  COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY access_direction\nORDER BY events DESC",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -587,8 +587,8 @@
     {
       "id": 10,
       "type": "barchart",
-      "title": "Top Underlying Audit Actions",
-      "description": "Most frequent GitHub audit actions.",
+      "title": "Events by Access / Identity Type",
+      "description": "Highest-volume access and identity event families.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -608,7 +608,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT action, COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY action\nORDER BY events DESC\nLIMIT 12",
+          "rawSql": "SELECT governance_event_type, COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY governance_event_type\nORDER BY events DESC\nLIMIT 12",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -643,8 +643,8 @@
     {
       "id": 11,
       "type": "table",
-      "title": "High / Critical Branch-Control Review Queue",
-      "description": "Events requiring elevated governance review after active exceptions are applied.",
+      "title": "High / Critical Access Review Queue",
+      "description": "Elevated access and identity-lifecycle events after active exceptions are applied.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -664,7 +664,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n  event_time,\n  review_priority,\n  governance_event_type,\n  action,\n  actor AS initiated_by,\n  org,\n  repository,\n  review_reason,\n  rule_id,\n  rule_version\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n  AND review_priority IN ('CRITICAL', 'HIGH')\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nORDER BY\n  CASE review_priority\n    WHEN 'CRITICAL' THEN 1\n    WHEN 'HIGH' THEN 2\n    ELSE 3\n  END,\n  event_time DESC\nLIMIT 300",
+          "rawSql": "SELECT\n  event_time,\n  review_priority,\n  governance_event_type,\n  action,\n  actor AS initiated_by,\n  affected_identity,\n  affected_identity_user_id,\n  org,\n  repository,\n  review_reason,\n  rule_id,\n  rule_version\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND review_priority IN ('CRITICAL', 'HIGH')\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nORDER BY\n  CASE review_priority\n    WHEN 'CRITICAL' THEN 1\n    WHEN 'HIGH' THEN 2\n    ELSE 3\n  END,\n  event_time DESC\nLIMIT 300",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -731,7 +731,7 @@
     {
       "id": 12,
       "type": "barchart",
-      "title": "Top Affected Repositories",
+      "title": "Top Affected Identities",
       "description": "",
       "datasource": {
         "type": "grafana-bigquery-datasource",
@@ -752,7 +752,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name, COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nCROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\nWHERE $__timeFilter(event_time)\n  AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n  AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY repository_name\nORDER BY events DESC\nLIMIT 12",
+          "rawSql": "SELECT affected_identity, COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND affected_identity IS NOT NULL\n  AND TRIM(affected_identity) != ''\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY affected_identity\nORDER BY events DESC\nLIMIT 12",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -808,7 +808,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(actor, 'Unknown') AS actor_name, COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY actor_name\nORDER BY events DESC\nLIMIT 12",
+          "rawSql": "SELECT COALESCE(actor, 'Unknown') AS actor_name, COUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY actor_name\nORDER BY events DESC\nLIMIT 12",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -843,7 +843,7 @@
     {
       "id": 14,
       "type": "barchart",
-      "title": "Events by Organization",
+      "title": "Access Events by Organization",
       "description": "",
       "datasource": {
         "type": "grafana-bigquery-datasource",
@@ -864,7 +864,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(NULLIF(org, ''), SPLIT(repository, '/')[SAFE_OFFSET(0)]) AS organization,\nCOUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY organization\nORDER BY events DESC\nLIMIT 12",
+          "rawSql": "SELECT COALESCE(NULLIF(org, ''), SPLIT(repository, '/')[SAFE_OFFSET(0)]) AS organization,\nCOUNT(*) AS events\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nGROUP BY organization\nORDER BY events DESC\nLIMIT 12",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -899,8 +899,8 @@
     {
       "id": 15,
       "type": "table",
-      "title": "Approved Automation Branch & Merge Events",
-      "description": "Events matched by an active approved-automation exception.",
+      "title": "Critical Technical-Account Lifecycle",
+      "description": "Suspension and restoration history for assessed critical technical accounts.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -920,7 +920,7 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n  governance_event.event_time,\n  governance_event.actor,\n  governance_event.action,\n  governance_event.governance_event_type,\n  governance_event.repository,\n  governance_event.review_priority,\n  exception.priority_override,\n  exception.reason AS exception_reason,\n  exception.owner_team\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events` AS governance_event\nJOIN `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions` AS exception\n  ON exception.is_active = TRUE\n AND LOWER(exception.actor) = LOWER(COALESCE(governance_event.actor, ''))\n AND (\n   exception.action = '*'\n   OR LOWER(exception.action) = LOWER(COALESCE(governance_event.action, ''))\n )\n AND (\n   exception.governance_event_type IS NULL\n   OR exception.governance_event_type = '*'\n   OR UPPER(exception.governance_event_type) =\n      UPPER(COALESCE(governance_event.governance_event_type, ''))\n )\nWHERE $__timeFilter(governance_event.event_time)\n  AND governance_event.governance_area = 'BRANCH_AND_MERGE_CONTROLS'\nORDER BY governance_event.event_time DESC\nLIMIT 300",
+          "rawSql": "SELECT\n  event_time,\n  review_priority,\n  governance_event_type,\n  action,\n  actor AS initiated_by,\n  affected_identity,\n  affected_identity_user_id,\n  review_reason,\n  rule_id,\n  rule_version\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\n  AND governance_event_type IN (\n    'CRITICAL_TECHNICAL_ACCOUNT_SUSPENDED',\n    'CRITICAL_TECHNICAL_ACCOUNT_RESTORED'\n  )\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nORDER BY\n  CASE review_priority\n    WHEN 'CRITICAL' THEN 1\n    WHEN 'HIGH' THEN 2\n    WHEN 'MEDIUM' THEN 3\n    WHEN 'LOW' THEN 4\n    ELSE 5\n  END,\n  event_time DESC\nLIMIT 300",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -987,8 +987,8 @@
     {
       "id": 16,
       "type": "table",
-      "title": "All Recent Branch & Merge-Control Events",
-      "description": "Complete curated branch and merge-control event history.",
+      "title": "Approved Automation Access Events",
+      "description": "Access and identity events matched by active approved-automation exceptions.",
       "datasource": {
         "type": "grafana-bigquery-datasource",
         "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
@@ -1008,7 +1008,95 @@
           "editorMode": "code",
           "format": 1,
           "rawQuery": true,
-          "rawSql": "SELECT\n  event_time,\n  review_priority,\n  governance_event_type,\n  action,\n  actor AS initiated_by,\n  org,\n  repository,\n  review_reason,\n  rule_id,\n  rule_version,\n  event_key,\n  source_file\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nORDER BY event_time DESC\nLIMIT 500",
+          "rawSql": "SELECT\n  governance_event.event_time,\n  governance_event.actor,\n  governance_event.action,\n  governance_event.governance_event_type,\n  governance_event.affected_identity,\n  governance_event.org,\n  governance_event.repository,\n  governance_event.review_priority,\n  exception.priority_override,\n  exception.reason AS exception_reason,\n  exception.owner_team\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events` AS governance_event\nJOIN `db-dev-l4to-mp-github.github_governance.github_governance_review_exceptions` AS exception\n  ON exception.is_active = TRUE\n AND LOWER(exception.actor) = LOWER(COALESCE(governance_event.actor, ''))\n AND (\n   exception.action = '*'\n   OR LOWER(exception.action) = LOWER(COALESCE(governance_event.action, ''))\n )\n AND (\n   exception.governance_event_type IS NULL\n   OR exception.governance_event_type = '*'\n   OR UPPER(exception.governance_event_type) =\n      UPPER(COALESCE(governance_event.governance_event_type, ''))\n )\nWHERE $__timeFilter(governance_event.event_time)\n  AND governance_event.governance_area IN (\n    'ACCESS_GOVERNANCE',\n    'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n  )\nORDER BY governance_event.event_time DESC\nLIMIT 300",
+          "refId": "A",
+          "project": "db-dev-l4to-mp-github"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "review_priority"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "CRITICAL": {
+                        "text": "CRITICAL",
+                        "color": "red"
+                      },
+                      "HIGH": {
+                        "text": "HIGH",
+                        "color": "orange"
+                      },
+                      "MEDIUM": {
+                        "text": "MEDIUM",
+                        "color": "yellow"
+                      },
+                      "LOW": {
+                        "text": "LOW",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        }
+      }
+    },
+    {
+      "id": 17,
+      "type": "table",
+      "title": "All Recent Access & Identity Events",
+      "description": "Complete curated access and identity-lifecycle history.",
+      "datasource": {
+        "type": "grafana-bigquery-datasource",
+        "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+      },
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 46
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-bigquery-datasource",
+            "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+          },
+          "editorMode": "code",
+          "format": 1,
+          "rawQuery": true,
+          "rawSql": "SELECT\n  event_time,\n  review_priority,\n  governance_area,\n  governance_event_type,\n  action,\n  actor AS initiated_by,\n  affected_identity,\n  affected_identity_user_id,\n  org,\n  repository,\n  review_reason,\n  rule_id,\n  rule_version,\n  event_key,\n  source_file\nFROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\nWHERE $__timeFilter(event_time)\nAND governance_area IN (\n  'ACCESS_GOVERNANCE',\n  'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n)\nAND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\nAND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\nAND (\n  '${actor:raw}' = 'ALL'\n  OR actor = '${actor:raw}'\n)\nAND (\n  '${affected_identity:raw}' = 'ALL'\n  OR affected_identity = '${affected_identity:raw}'\n)\nAND (\n  '${review_priority:raw}' = 'ALL'\n  OR review_priority = '${review_priority:raw}'\n)\nAND (\n  '${governance_event_type:raw}' = 'ALL'\n  OR governance_event_type = '${governance_event_type:raw}'\n)\nORDER BY event_time DESC\nLIMIT 500",
           "refId": "A",
           "project": "db-dev-l4to-mp-github"
         }
@@ -1077,9 +1165,9 @@
   "schemaVersion": 39,
   "tags": [
     "github-governance",
-    "branch-protection",
-    "merge-controls",
-    "bigquery"
+    "access-governance",
+    "identity-lifecycle",
+    "technical-accounts"
   ],
   "templating": {
     "list": [
@@ -1092,15 +1180,15 @@
           "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
         },
         "query": {
-          "query": "WITH organizations AS (\n  SELECT TRIM(org) AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND org IS NOT NULL\n    AND TRIM(org) != ''\n\n  UNION DISTINCT\n\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/') > 0\n)\nSELECT organization AS __text, organization AS __value\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT organization, 1\n  FROM organizations\n  WHERE organization IS NOT NULL\n    AND organization != ''\n)\nORDER BY sort_order, organization\nLIMIT 5000",
-          "rawSql": "WITH organizations AS (\n  SELECT TRIM(org) AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND org IS NOT NULL\n    AND TRIM(org) != ''\n\n  UNION DISTINCT\n\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/') > 0\n)\nSELECT organization AS __text, organization AS __value\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT organization, 1\n  FROM organizations\n  WHERE organization IS NOT NULL\n    AND organization != ''\n)\nORDER BY sort_order, organization\nLIMIT 5000",
+          "query": "WITH organizations AS (\n  SELECT TRIM(org) AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND org IS NOT NULL\n    AND TRIM(org) != ''\n\n  UNION DISTINCT\n\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/') > 0\n)\nSELECT organization AS __text, organization AS __value\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT organization, 1\n  FROM organizations\n  WHERE organization IS NOT NULL AND organization != ''\n)\nORDER BY sort_order, organization\nLIMIT 5000",
+          "rawSql": "WITH organizations AS (\n  SELECT TRIM(org) AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND org IS NOT NULL\n    AND TRIM(org) != ''\n\n  UNION DISTINCT\n\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/') > 0\n)\nSELECT organization AS __text, organization AS __value\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT organization, 1\n  FROM organizations\n  WHERE organization IS NOT NULL AND organization != ''\n)\nORDER BY sort_order, organization\nLIMIT 5000",
           "format": 1,
           "rawQuery": true,
           "editorMode": "code",
           "project": "db-dev-l4to-mp-github",
           "refId": "StandardVariableQuery"
         },
-        "definition": "WITH organizations AS (\n  SELECT TRIM(org) AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND org IS NOT NULL\n    AND TRIM(org) != ''\n\n  UNION DISTINCT\n\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/') > 0\n)\nSELECT organization AS __text, organization AS __value\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT organization, 1\n  FROM organizations\n  WHERE organization IS NOT NULL\n    AND organization != ''\n)\nORDER BY sort_order, organization\nLIMIT 5000",
+        "definition": "WITH organizations AS (\n  SELECT TRIM(org) AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND org IS NOT NULL\n    AND TRIM(org) != ''\n\n  UNION DISTINCT\n\n  SELECT SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] AS organization\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND STRPOS(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/') > 0\n)\nSELECT organization AS __text, organization AS __value\nFROM (\n  SELECT 'ALL' AS organization, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT organization, 1\n  FROM organizations\n  WHERE organization IS NOT NULL AND organization != ''\n)\nORDER BY sort_order, organization\nLIMIT 5000",
         "includeAll": false,
         "multi": false,
         "hide": 0,
@@ -1124,15 +1212,15 @@
           "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
         },
         "query": {
-          "query": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\n)\nSELECT repository_name AS __text, repository_name AS __value\nFROM (\n  SELECT 'ALL' AS repository_name, 0 AS sort_order\n  UNION ALL\n  SELECT repository_name, 1\n  FROM repositories\n  WHERE '${organization:raw}' = 'ALL'\n     OR SPLIT(repository_name, '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n)\nORDER BY sort_order, repository_name\nLIMIT 10000",
-          "rawSql": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\n)\nSELECT repository_name AS __text, repository_name AS __value\nFROM (\n  SELECT 'ALL' AS repository_name, 0 AS sort_order\n  UNION ALL\n  SELECT repository_name, 1\n  FROM repositories\n  WHERE '${organization:raw}' = 'ALL'\n     OR SPLIT(repository_name, '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n)\nORDER BY sort_order, repository_name\nLIMIT 10000",
+          "query": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\n)\nSELECT repository_name AS __text, repository_name AS __value\nFROM (\n  SELECT 'ALL' AS repository_name, 0 AS sort_order\n  UNION ALL\n  SELECT repository_name, 1\n  FROM repositories\n  WHERE '${organization:raw}' = 'ALL'\n     OR SPLIT(repository_name, '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n)\nORDER BY sort_order, repository_name\nLIMIT 10000",
+          "rawSql": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\n)\nSELECT repository_name AS __text, repository_name AS __value\nFROM (\n  SELECT 'ALL' AS repository_name, 0 AS sort_order\n  UNION ALL\n  SELECT repository_name, 1\n  FROM repositories\n  WHERE '${organization:raw}' = 'ALL'\n     OR SPLIT(repository_name, '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n)\nORDER BY sort_order, repository_name\nLIMIT 10000",
           "format": 1,
           "rawQuery": true,
           "editorMode": "code",
           "project": "db-dev-l4to-mp-github",
           "refId": "StandardVariableQuery"
         },
-        "definition": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\n)\nSELECT repository_name AS __text, repository_name AS __value\nFROM (\n  SELECT 'ALL' AS repository_name, 0 AS sort_order\n  UNION ALL\n  SELECT repository_name, 1\n  FROM repositories\n  WHERE '${organization:raw}' = 'ALL'\n     OR SPLIT(repository_name, '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n)\nORDER BY sort_order, repository_name\nLIMIT 10000",
+        "definition": "WITH repositories AS (\n  SELECT DISTINCT TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) AS repository_name\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  CROSS JOIN UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) != ''\n)\nSELECT repository_name AS __text, repository_name AS __value\nFROM (\n  SELECT 'ALL' AS repository_name, 0 AS sort_order\n  UNION ALL\n  SELECT repository_name, 1\n  FROM repositories\n  WHERE '${organization:raw}' = 'ALL'\n     OR SPLIT(repository_name, '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n)\nORDER BY sort_order, repository_name\nLIMIT 10000",
         "includeAll": false,
         "multi": false,
         "hide": 0,
@@ -1173,15 +1261,47 @@
           "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
         },
         "query": {
-          "query": "SELECT actor_name AS __text, actor_name AS __value\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND actor IS NOT NULL\n    AND TRIM(actor) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
-          "rawSql": "SELECT actor_name AS __text, actor_name AS __value\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND actor IS NOT NULL\n    AND TRIM(actor) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
+          "query": "SELECT actor_name AS __text, actor_name AS __value\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND actor IS NOT NULL\n    AND TRIM(actor) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
+          "rawSql": "SELECT actor_name AS __text, actor_name AS __value\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND actor IS NOT NULL\n    AND TRIM(actor) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
           "format": 1,
           "rawQuery": true,
           "editorMode": "code",
           "project": "db-dev-l4to-mp-github",
           "refId": "StandardVariableQuery"
         },
-        "definition": "SELECT actor_name AS __text, actor_name AS __value\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND actor IS NOT NULL\n    AND TRIM(actor) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
+        "definition": "SELECT actor_name AS __text, actor_name AS __value\nFROM (\n  SELECT 'ALL' AS actor_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT actor AS actor_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND actor IS NOT NULL\n    AND TRIM(actor) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, actor_name\nLIMIT 10000",
+        "includeAll": false,
+        "multi": false,
+        "hide": 0,
+        "refresh": 2,
+        "sort": 0,
+        "current": {
+          "selected": true,
+          "text": "ALL",
+          "value": "ALL"
+        },
+        "options": [],
+        "regex": "",
+        "skipUrlSync": false
+      },
+      {
+        "name": "affected_identity",
+        "label": "Affected Identity",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-bigquery-datasource",
+          "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
+        },
+        "query": {
+          "query": "SELECT identity_name AS __text, identity_name AS __value\nFROM (\n  SELECT 'ALL' AS identity_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT affected_identity AS identity_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND affected_identity IS NOT NULL\n    AND TRIM(affected_identity) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, identity_name\nLIMIT 10000",
+          "rawSql": "SELECT identity_name AS __text, identity_name AS __value\nFROM (\n  SELECT 'ALL' AS identity_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT affected_identity AS identity_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND affected_identity IS NOT NULL\n    AND TRIM(affected_identity) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, identity_name\nLIMIT 10000",
+          "format": 1,
+          "rawQuery": true,
+          "editorMode": "code",
+          "project": "db-dev-l4to-mp-github",
+          "refId": "StandardVariableQuery"
+        },
+        "definition": "SELECT identity_name AS __text, identity_name AS __value\nFROM (\n  SELECT 'ALL' AS identity_name, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT affected_identity AS identity_name, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND affected_identity IS NOT NULL\n    AND TRIM(affected_identity) != ''\n    AND (\n  '${organization:raw}' = 'ALL'\n  OR org = '${organization:raw}'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE SPLIT(TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')), '/')[SAFE_OFFSET(0)] = '${organization:raw}'\n  )\n)\n    AND (\n  '${repository:raw}' = 'ALL'\n  OR EXISTS (\n    SELECT 1\n    FROM UNNEST(SPLIT(COALESCE(repository, ''), ',')) AS repository_token\n    WHERE TRIM(REGEXP_REPLACE(repository_token, r'[\\[\\]\\\"]', '')) = '${repository:raw}'\n  )\n)\n)\nORDER BY sort_order, identity_name\nLIMIT 10000",
         "includeAll": false,
         "multi": false,
         "hide": 0,
@@ -1205,15 +1325,15 @@
           "uid": "${DS_GITHUB_GOVERNANCE_BIGQUERY}"
         },
         "query": {
-          "query": "SELECT event_type AS __text, event_type AS __value\nFROM (\n  SELECT 'ALL' AS event_type, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT governance_event_type AS event_type, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND governance_event_type IS NOT NULL\n    AND TRIM(governance_event_type) != ''\n)\nORDER BY sort_order, event_type\nLIMIT 1000",
-          "rawSql": "SELECT event_type AS __text, event_type AS __value\nFROM (\n  SELECT 'ALL' AS event_type, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT governance_event_type AS event_type, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND governance_event_type IS NOT NULL\n    AND TRIM(governance_event_type) != ''\n)\nORDER BY sort_order, event_type\nLIMIT 1000",
+          "query": "SELECT event_type AS __text, event_type AS __value\nFROM (\n  SELECT 'ALL' AS event_type, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT governance_event_type AS event_type, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND governance_event_type IS NOT NULL\n    AND TRIM(governance_event_type) != ''\n)\nORDER BY sort_order, event_type\nLIMIT 1000",
+          "rawSql": "SELECT event_type AS __text, event_type AS __value\nFROM (\n  SELECT 'ALL' AS event_type, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT governance_event_type AS event_type, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND governance_event_type IS NOT NULL\n    AND TRIM(governance_event_type) != ''\n)\nORDER BY sort_order, event_type\nLIMIT 1000",
           "format": 1,
           "rawQuery": true,
           "editorMode": "code",
           "project": "db-dev-l4to-mp-github",
           "refId": "StandardVariableQuery"
         },
-        "definition": "SELECT event_type AS __text, event_type AS __value\nFROM (\n  SELECT 'ALL' AS event_type, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT governance_event_type AS event_type, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area = 'BRANCH_AND_MERGE_CONTROLS'\n    AND governance_event_type IS NOT NULL\n    AND TRIM(governance_event_type) != ''\n)\nORDER BY sort_order, event_type\nLIMIT 1000",
+        "definition": "SELECT event_type AS __text, event_type AS __value\nFROM (\n  SELECT 'ALL' AS event_type, 0 AS sort_order\n  UNION ALL\n  SELECT DISTINCT governance_event_type AS event_type, 1\n  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`\n  WHERE event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)\n    AND governance_area IN (\n      'ACCESS_GOVERNANCE',\n      'IDENTITY_AND_SERVICE_ACCOUNT_AVAILABILITY'\n    )\n    AND governance_event_type IS NOT NULL\n    AND TRIM(governance_event_type) != ''\n)\nORDER BY sort_order, event_type\nLIMIT 1000",
         "includeAll": false,
         "multi": false,
         "hide": 0,
@@ -1250,7 +1370,7 @@
     ]
   },
   "timezone": "browser",
-  "title": "Branch & Merge Controls",
-  "uid": "branch-merge-controls",
+  "title": "Access Governance & Identity Lifecycle",
+  "uid": "access-governance-identity-lifecycle",
   "version": 1
 }
