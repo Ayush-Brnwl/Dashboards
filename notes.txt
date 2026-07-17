@@ -1,74 +1,141 @@
 SELECT
-  governance_area,
-  governance_event_type,
-  review_priority,
-  rule_version,
-  COUNT(*) AS events,
-  COUNT(DISTINCT actor) AS actors,
-  COUNT(DISTINCT repository) AS repositories,
-  MIN(event_time) AS first_seen,
-  MAX(event_time) AS last_seen
-FROM
-  `db-dev-l4to-mp-github.github_governance.github_governance_events`
-WHERE
-  event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
-GROUP BY
-  governance_area,
-  governance_event_type,
-  review_priority,
-  rule_version
-ORDER BY
-  CASE review_priority
-    WHEN 'CRITICAL' THEN 1
-    WHEN 'HIGH' THEN 2
-    WHEN 'MEDIUM' THEN 3
-    WHEN 'LOW' THEN 4
-    ELSE 5
-  END,
-  events DESC;
+  DATE(event_time) AS event_date,
+
+  COUNT(*) AS normalized_events,
+
+  COUNT(DISTINCT actor) AS unique_actors,
+
+  COUNT(DISTINCT org) AS organizations,
+
+  COUNT(
+    DISTINCT COALESCE(
+      NULLIF(repository, ''),
+      NULLIF(repo, '')
+    )
+  ) AS repositories
+
+FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized`
+
+WHERE event_time >= TIMESTAMP_SUB(
+  CURRENT_TIMESTAMP(),
+  INTERVAL 30 DAY
+)
+
+GROUP BY event_date
+ORDER BY event_date DESC;
 
 
 SELECT
   event_time,
-  governance_event_type,
   action,
+  category,
   actor,
+  actor_id,
   org,
-  repository,
-  review_priority,
-  review_reason
-FROM
-  `db-dev-l4to-mp-github.github_governance.github_governance_events`
-WHERE
-  event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
-  AND review_priority = 'CRITICAL'
-ORDER BY
-  event_time DESC
-LIMIT 500;
+
+  COALESCE(
+    NULLIF(repository, ''),
+    NULLIF(repo, '')
+  ) AS repository,
+
+  user AS affected_identity,
+  user_id AS affected_identity_user_id,
+
+  programmatic_access_type,
+  repository_public,
+  source_file
+
+FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized`
+
+WHERE event_time >= TIMESTAMP_SUB(
+  CURRENT_TIMESTAMP(),
+  INTERVAL 7 DAY
+)
+
+ORDER BY event_time DESC
+LIMIT 50;
 
 
 SELECT
-  actor,
-  review_priority,
-  governance_event_type,
   action,
-  COUNT(*) AS events
-FROM
-  `db-dev-l4to-mp-github.github_governance.github_governance_events`
-WHERE
-  event_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 180 DAY)
-  AND LOWER(actor) IN (
-    'ghemu-landing-zone-factory[bot]',
-    'cem401-cptcldeg-gh-g_dbk',
-    'cem402-cptcldeg-gh-g_dbk'
+  category,
+
+  COUNT(*) AS event_count,
+
+  COUNT(DISTINCT actor) AS unique_actors,
+
+  COUNT(DISTINCT org) AS organizations
+
+FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized`
+
+WHERE event_time >= TIMESTAMP_SUB(
+  CURRENT_TIMESTAMP(),
+  INTERVAL 30 DAY
+)
+
+GROUP BY action, category
+ORDER BY event_count DESC
+LIMIT 30;
+
+WITH raw_data AS (
+  SELECT
+    COUNT(*) AS raw_event_count
+  FROM `db-dev-l4to-mp-github.github_governance.github_audit_events_normalized`
+  WHERE event_time >= TIMESTAMP_SUB(
+    CURRENT_TIMESTAMP(),
+    INTERVAL 30 DAY
   )
-GROUP BY
-  actor,
+),
+
+governance_data AS (
+  SELECT
+    COUNT(*) AS governance_event_count
+  FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
+  WHERE event_time >= TIMESTAMP_SUB(
+    CURRENT_TIMESTAMP(),
+    INTERVAL 30 DAY
+  )
+)
+
+SELECT
+  raw_event_count,
+  governance_event_count,
+
+  ROUND(
+    100 * SAFE_DIVIDE(
+      governance_event_count,
+      raw_event_count
+    ),
+    2
+  ) AS governance_signal_percentage
+
+FROM raw_data
+CROSS JOIN governance_data;
+
+
+
+SELECT
+  governance_area,
   review_priority,
-  governance_event_type,
-  action
+
+  COUNT(*) AS event_count,
+
+  COUNT(DISTINCT actor) AS unique_actors,
+
+  COUNT(DISTINCT repository) AS repositories
+
+FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
+
+WHERE event_time >= TIMESTAMP_SUB(
+  CURRENT_TIMESTAMP(),
+  INTERVAL 30 DAY
+)
+
+GROUP BY
+  governance_area,
+  review_priority
+
 ORDER BY
-  actor,
   CASE review_priority
     WHEN 'CRITICAL' THEN 1
     WHEN 'HIGH' THEN 2
@@ -76,4 +143,44 @@ ORDER BY
     WHEN 'LOW' THEN 4
     ELSE 5
   END,
-  events DESC;
+  event_count DESC;
+
+
+SELECT
+  event_time,
+  review_priority,
+  governance_area,
+  governance_event_type,
+
+  action,
+  actor AS initiated_by,
+  affected_identity,
+
+  org,
+  repository,
+
+  review_reason,
+  rule_id,
+  rule_version
+
+FROM `db-dev-l4to-mp-github.github_governance.github_governance_events`
+
+WHERE event_time >= TIMESTAMP_SUB(
+  CURRENT_TIMESTAMP(),
+  INTERVAL 30 DAY
+)
+
+AND review_priority IN (
+  'CRITICAL',
+  'HIGH'
+)
+
+ORDER BY
+  CASE review_priority
+    WHEN 'CRITICAL' THEN 1
+    WHEN 'HIGH' THEN 2
+    ELSE 3
+  END,
+  event_time DESC
+
+LIMIT 50;
