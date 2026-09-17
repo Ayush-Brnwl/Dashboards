@@ -1,16 +1,309 @@
-protected_branch.policy_override              HIGH
-protected_branch.*                            MEDIUM
-required_status_check.*                       MEDIUM
-repo.change_merge_setting                     HIGH
+-- GitHub License Utilization & Dormancy
+-- Step 1: Daily consumed-license inventory
+-- BigQuery dataset: db-dev-l4to-mp-github.github_governance
+--
+-- Safe to run more than once. This file creates:
+--   1. github_license_snapshot_runs       - collection/run control data
+--   2. github_license_user_snapshot       - one row per licensed identity per day
+--   3. github_license_users_current       - latest successfully completed snapshot
 
-org.add_member                                MEDIUM
-org.remove_member                             MEDIUM
+-- -----------------------------------------------------------------------------
+-- 1. Collection-run control table
+-- -----------------------------------------------------------------------------
 
-oauth_access.create                           MEDIUM
-oauth_access.regenerate                       MEDIUM
-oauth_access.destroy                          LOW
+CREATE TABLE IF NOT EXISTS
+  `db-dev-l4to-mp-github.github_governance.github_license_snapshot_runs`
+(
+  snapshot_run_id STRING NOT NULL,
+  enterprise_slug STRING NOT NULL,
+  snapshot_date DATE NOT NULL,
 
-For team membership, I recommend this split:
+  collection_started_at TIMESTAMP NOT NULL,
+  collection_completed_at TIMESTAMP,
+  status STRING NOT NULL,
+  failure_stage STRING,
+  error_message STRING,
 
-team.add_member                               MEDIUM
-team.remove_member                            LOW
+  source_system STRING NOT NULL,
+  source_api_version STRING,
+  collector_version STRING,
+
+  api_total_seats_consumed INT64,
+  api_total_seats_purchased INT64,
+  api_user_record_count INT64,
+  loaded_user_record_count INT64,
+
+  pages_fetched INT64,
+  pagination_complete BOOL,
+  duplicate_identity_count INT64,
+  missing_github_login_count INT64,
+  unresolved_identity_count INT64,
+
+  created_at TIMESTAMP NOT NULL,
+  updated_at TIMESTAMP NOT NULL
+)
+PARTITION BY snapshot_date
+CLUSTER BY enterprise_slug, status
+OPTIONS (
+  description = 'Control record for each GitHub consumed-license collection attempt. Only COMPLETE runs are eligible for downstream reporting.'
+);
+
+-- Allowed status values are intentionally documented rather than enforced by
+-- the table so that operational recovery states can be added without a schema
+-- migration:
+--   STARTED, COMPLETE, FAILED, REJECTED
+
+-- -----------------------------------------------------------------------------
+-- 2. Daily licensed-user snapshot
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS
+  `db-dev-l4to-mp-github.github_governance.github_license_user_snapshot`
+(
+  snapshot_date DATE NOT NULL,
+  snapshot_run_id STRING NOT NULL,
+  captured_at TIMESTAMP NOT NULL,
+  enterprise_slug STRING NOT NULL,
+
+  -- Stable canonical identity for this source record.
+  -- Preferred formats:
+  --   github:<normalized-login>
+  --   saml:<normalized-saml-name-id>
+  --   server:<sha256-of-sorted-server-user-ids>
+  license_identity_key STRING NOT NULL,
+  identity_key_type STRING NOT NULL,
+
+  github_login STRING,
+  github_login_normalized STRING,
+  github_name STRING,
+  github_profile_url STRING,
+
+  -- email_address preserves the legacy GHEMU_USER value when available.
+  -- verified_domain_emails preserves the complete API list.
+  email_address STRING,
+  verified_domain_emails ARRAY<STRING>,
+  saml_name_id STRING,
+
+  license_type STRING,
+  is_github_com_user BOOL,
+  is_enterprise_server_user BOOL,
+  is_visual_studio_subscription_user BOOL,
+
+  member_roles ARRAY<STRING>,
+  enterprise_roles ARRAY<STRING>,
+  pending_org_invites ARRAY<STRING>,
+  two_factor_auth_enabled BOOL,
+
+  enterprise_server_user_ids ARRAY<STRING>,
+  enterprise_server_emails ARRAY<STRING>,
+  visual_studio_license_status STRING,
+  visual_studio_subscription_email STRING,
+  total_user_accounts INT64,
+
+  -- Nullable legacy enrichment. The consumed-licenses endpoint does not
+  -- provide this field; populate it only if GHEMU_USER supplies it.
+  advanced_security_enabled BOOL,
+
+  source_system STRING NOT NULL,
+  source_api_version STRING,
+  collector_version STRING,
+  source_record_hash STRING,
+  loaded_at TIMESTAMP NOT NULL
+)
+PARTITION BY snapshot_date
+CLUSTER BY github_login_normalized, license_type, identity_key_type
+OPTIONS (
+  description = 'Immutable daily inventory of identities consuming GitHub enterprise licenses. One canonical row per enterprise, snapshot date, and license identity.'
+);
+
+-- Deliberately absent from this source-of-truth table:
+--   is_current, staff/UBR fields, SCIM eligibility, account type, activity,
+--   dormancy flags, and removal decisions.
+-- Those values are derived later so historical source facts remain unchanged.
+
+-- -----------------------------------------------------------------------------
+-- 3. Latest successful snapshot view
+-- -----------------------------------------------------------------------------
+
+CREATE OR REPLACE VIEW
+  `db-dev-l4to-mp-github.github_governance.github_license_users_current`
+OPTIONS (
+  description = 'Latest successfully completed GitHub license snapshot for each enterprise. Failed or partial collection runs are excluded.'
+)
+AS
+WITH latest_complete_run AS (
+  SELECT
+    enterprise_slug,
+    snapshot_date,
+    snapshot_run_id,
+    collection_completed_at
+  FROM
+    `db-dev-l4to-mp-github.github_governance.github_license_snapshot_runs`
+  WHERE
+    status = 'COMPLETE'
+    AND collection_completed_at IS NOT NULL
+  QUALIFY
+    ROW_NUMBER() OVER (
+      PARTITION BY enterprise_slug
+      ORDER BY
+        snapshot_date DESC,
+        collection_completed_at DESC,
+        snapshot_run_id DESC
+    ) = 1
+)
+SELECT
+  u.*
+FROM
+  `db-dev-l4to-mp-github.github_governance.github_license_user_snapshot` AS u
+INNER JOIN latest_complete_run AS r
+  ON u.enterprise_slug = r.enterprise_slug
+  AND u.snapshot_date = r.snapshot_date
+  AND u.snapshot_run_id = r.snapshot_run_id
+QUALIFY
+  ROW_NUMBER() OVER (
+    PARTITION BY u.enterprise_slug, u.license_identity_key
+    ORDER BY u.captured_at DESC, u.loaded_at DESC
+  ) = 1;
+
+-- -----------------------------------------------------------------------------
+-- 4. Post-load validation queries
+-- Run these after the first snapshot has been loaded.
+-- -----------------------------------------------------------------------------
+
+-- 4.1 Latest run and collection completeness.
+SELECT
+  snapshot_run_id,
+  enterprise_slug,
+  snapshot_date,
+  status,
+  collection_started_at,
+  collection_completed_at,
+  api_total_seats_consumed,
+  api_total_seats_purchased,
+  api_user_record_count,
+  loaded_user_record_count,
+  pages_fetched,
+  pagination_complete,
+  duplicate_identity_count,
+  missing_github_login_count,
+  unresolved_identity_count,
+  failure_stage,
+  error_message
+FROM
+  `db-dev-l4to-mp-github.github_governance.github_license_snapshot_runs`
+ORDER BY collection_started_at DESC
+LIMIT 20;
+
+-- 4.2 There must be no duplicate canonical identity in a daily snapshot.
+SELECT
+  snapshot_date,
+  enterprise_slug,
+  license_identity_key,
+  COUNT(*) AS row_count
+FROM
+  `db-dev-l4to-mp-github.github_governance.github_license_user_snapshot`
+WHERE
+  snapshot_date >= DATE_SUB(CURRENT_DATE('UTC'), INTERVAL 7 DAY)
+GROUP BY
+  snapshot_date,
+  enterprise_slug,
+  license_identity_key
+HAVING COUNT(*) > 1
+ORDER BY row_count DESC;
+
+-- 4.3 Reconcile run metadata with rows physically loaded.
+SELECT
+  r.snapshot_run_id,
+  r.enterprise_slug,
+  r.snapshot_date,
+  r.status,
+  r.api_user_record_count,
+  r.loaded_user_record_count AS recorded_loaded_count,
+  COUNT(s.license_identity_key) AS actual_loaded_count,
+  r.pagination_complete,
+  r.duplicate_identity_count,
+  r.unresolved_identity_count
+FROM
+  `db-dev-l4to-mp-github.github_governance.github_license_snapshot_runs` AS r
+LEFT JOIN
+  `db-dev-l4to-mp-github.github_governance.github_license_user_snapshot` AS s
+  ON s.snapshot_date = r.snapshot_date
+  AND s.enterprise_slug = r.enterprise_slug
+  AND s.snapshot_run_id = r.snapshot_run_id
+WHERE
+  r.snapshot_date >= DATE_SUB(CURRENT_DATE('UTC'), INTERVAL 7 DAY)
+GROUP BY
+  r.snapshot_run_id,
+  r.enterprise_slug,
+  r.snapshot_date,
+  r.status,
+  r.api_user_record_count,
+  r.loaded_user_record_count,
+  r.pagination_complete,
+  r.duplicate_identity_count,
+  r.unresolved_identity_count
+ORDER BY r.snapshot_date DESC, r.snapshot_run_id DESC;
+
+-- 4.4 Identity quality of the current usable snapshot.
+SELECT
+  COUNT(*) AS current_license_records,
+  COUNTIF(github_login_normalized IS NULL) AS missing_login_records,
+  COUNTIF(identity_key_type = 'UNRESOLVED') AS unresolved_identity_records,
+  COUNTIF(email_address IS NULL AND ARRAY_LENGTH(verified_domain_emails) = 0)
+    AS records_without_email,
+  COUNTIF(saml_name_id IS NULL) AS records_without_saml_name_id,
+  COUNTIF(license_type IS NULL) AS records_without_license_type
+FROM
+  `db-dev-l4to-mp-github.github_governance.github_license_users_current`;
+
+-- 4.5 Daily inventory trend. Large unexpected changes require investigation;
+-- they must not automatically turn into license-removal candidates.
+WITH daily AS (
+  SELECT
+    snapshot_date,
+    enterprise_slug,
+    COUNT(DISTINCT license_identity_key) AS licensed_identity_count
+  FROM
+    `db-dev-l4to-mp-github.github_governance.github_license_user_snapshot`
+  WHERE
+    snapshot_date >= DATE_SUB(CURRENT_DATE('UTC'), INTERVAL 30 DAY)
+  GROUP BY snapshot_date, enterprise_slug
+),
+with_previous AS (
+  SELECT
+    *,
+    LAG(licensed_identity_count) OVER (
+      PARTITION BY enterprise_slug
+      ORDER BY snapshot_date
+    ) AS previous_identity_count
+  FROM daily
+)
+SELECT
+  *,
+  licensed_identity_count - previous_identity_count AS absolute_change,
+  SAFE_DIVIDE(
+    licensed_identity_count - previous_identity_count,
+    previous_identity_count
+  ) AS percentage_change
+FROM with_previous
+ORDER BY snapshot_date DESC, enterprise_slug;
+
+-- -----------------------------------------------------------------------------
+-- First-load rule
+-- -----------------------------------------------------------------------------
+-- Fetch or export the complete source inventory before inserting any target
+-- rows. Create a STARTED run record first. Promote rows and change that run to
+-- COMPLETE in one BigQuery transaction only after all pages/records pass the
+-- validations below:
+--
+--   * pagination_complete = TRUE
+--   * fetched record count equals the number of API user objects received
+--   * duplicate_identity_count = 0
+--   * every row has a non-empty license_identity_key
+--   * loaded row count equals the canonical deduplicated source row count
+--
+-- Do not require api_total_seats_consumed to equal API user-object count:
+-- retain both measures and reconcile them, because one response record can
+-- represent linked GitHub.com, Enterprise Server, or Visual Studio identities.
+-- A failed or partial run remains FAILED/REJECTED and is never exposed through
+-- github_license_users_current.
