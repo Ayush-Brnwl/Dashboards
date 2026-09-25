@@ -1,0 +1,39 @@
+project_id        = "db-dev-l4to-mp-github"
+region            = "europe-west3"
+bigquery_location = "EU"
+
+image_uri = "europe-west3-docker.pkg.dev/db-dev-l4to-mp-github/approved-images/github-license-collector@sha256:REPLACE_ME"
+
+bigquery_dataset_id       = "github_governance"
+bigquery_snapshot_table_id = "github_license_user_snapshot"
+bigquery_run_table_id      = "github_license_snapshot_runs"
+
+archive_bucket_name = "REPLACE_WITH_TERRAFORM_MANAGED_BUCKET"
+archive_prefix      = "github-license-snapshots"
+
+github_enterprise_slug        = "REPLACE_WITH_ENTERPRISE_SLUG"
+github_app_id                 = "REPLACE_WITH_APP_ID"
+github_app_installation_id    = 12345678
+github_private_key_secret_id  = "github-license-collector-private-key"
+# Pin a numeric secret version for production after validate mode succeeds.
+github_private_key_secret_version = "1"
+
+collector_version = "1.0.0+REPLACE_WITH_COMMIT_SHA"
+run_mode          = "validate"
+
+# Leave paused until a manual validate run and a manual full run both pass.
+scheduler_paused = true
+schedule         = "0 2 * * *"
+schedule_time_zone = "Etc/UTC"
+
+# Set true only if this Terraform workspace owns API enablement.
+manage_project_services = false
+
+# If your bank routes public egress through a VPC/proxy, configure these.
+# vpc_connector = "projects/PROJECT/locations/REGION/connectors/CONNECTOR"
+# vpc_egress    = "ALL_TRAFFIC"
+# proxy_environment = {
+#   HTTPS_PROXY = "http://proxy.example.internal:8080"
+#   NO_PROXY    = "metadata.google.internal,*.googleapis.com"
+# }
+
